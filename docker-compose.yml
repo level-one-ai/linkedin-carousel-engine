@@ -1,0 +1,51 @@
+services:
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: carousel-gotenberg
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    command:
+      - gotenberg
+      - --api-timeout=180s
+      # The app container is the only client, so keep the surface small.
+      - --chromium-disable-javascript=false
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  pocketbase:
+    image: ghcr.io/pocketbase/pocketbase:latest
+    container_name: carousel-pocketbase
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    command:
+      - --dir=/pb_data
+      - --http=0.0.0.0:8090
+    volumes:
+      - ./pocketbase/pb_data:/pb_data
+      - ./pocketbase/pb_migrations:/pb_migrations
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: carousel-app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      # Service names resolve on the compose network, so no host ports are used.
+      GOTENBERG_URL: http://gotenberg:3000
+      POCKETBASE_URL: http://pocketbase:8090
+      POCKETBASE_ADMIN_EMAIL: ${POCKETBASE_ADMIN_EMAIL}
+      POCKETBASE_ADMIN_PASSWORD: ${POCKETBASE_ADMIN_PASSWORD}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-50}
+    depends_on:
+      - gotenberg
+      - pocketbase

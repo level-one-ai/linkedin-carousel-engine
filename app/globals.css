@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-ink text-slate-100 antialiased;
+}
+
+/* react-pdf renders each page into a canvas; this keeps pages centered and crisp. */
+.pdf-page canvas {
+  @apply w-full h-auto rounded-lg shadow-2xl;
+}

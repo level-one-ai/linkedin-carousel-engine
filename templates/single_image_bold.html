@@ -1,0 +1,122 @@
+<meta charset="utf-8" />
+<style>
+  @page { size: 1080px 1350px; margin: 0; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 1080px;
+    height: 1350px;
+    background: #0b1220;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-family: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
+  }
+
+  /* Single frame layout. Only the first slide is ever rendered in image mode. */
+  .slide {
+    position: relative;
+    width: 1080px;
+    height: 1350px;
+    overflow: hidden;
+    color: #ffffff;
+    padding: 110px 92px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: linear-gradient(140deg, #0b1220 0%, #142a5e 100%);
+  }
+
+  .grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.05) 2px, transparent 2px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.05) 2px, transparent 2px);
+    background-size: 90px 90px;
+  }
+
+  .slide > *:not(.grid) { position: relative; z-index: 1; }
+
+  .kicker {
+    font-size: 28px;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #7aa2ff;
+    margin-bottom: 40px;
+  }
+
+  .heading {
+    font-size: 116px;
+    line-height: 1.03;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 44px;
+  }
+
+  .body {
+    font-size: 42px;
+    line-height: 1.45;
+    color: #b6c3e2;
+    max-width: 880px;
+  }
+
+  .bullets {
+    list-style: none;
+    margin-top: 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+
+  .bullets li {
+    position: relative;
+    padding-left: 48px;
+    font-size: 36px;
+    line-height: 1.4;
+    color: #e3eaf9;
+  }
+
+  .bullets li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 18px;
+    width: 22px;
+    height: 5px;
+    background: #2f6df6;
+  }
+
+  .footer {
+    position: absolute;
+    left: 92px;
+    right: 92px;
+    bottom: 84px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 27px;
+    color: #7f8db1;
+    letter-spacing: 0.05em;
+    border-top: 2px solid #1e2b45;
+    padding-top: 30px;
+  }
+</style>
+
+{{#with slides.[0]}}
+<section class="slide">
+  <div class="grid"></div>
+  {{#if kicker}}<div class="kicker">{{kicker}}</div>{{/if}}
+  <h1 class="heading">{{heading}}</h1>
+  {{#if body}}<p class="body">{{body}}</p>{{/if}}
+  {{#if bullets.length}}
+  <ul class="bullets">
+    {{#each bullets}}<li>{{this}}</li>{{/each}}
+  </ul>
+  {{/if}}
+  <div class="footer">
+    <span>{{../title}}</span>
+    <span>{{../subtitle}}</span>
+  </div>
+</section>
+{{/with}}

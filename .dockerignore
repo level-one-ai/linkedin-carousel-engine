@@ -1,0 +1,7 @@
+node_modules
+.next
+.git
+pocketbase/pb_data
+npm-debug.log
+.env
+.env.local

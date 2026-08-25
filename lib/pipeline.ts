@@ -1,6 +1,12 @@
+import { renderSlides } from './chromium';
 import { generateContentPayload } from './gemini';
-import { convertHtml } from './gotenberg';
-import { getTemplateByKey, listTemplates, logError, logGeneratedPost } from './pocketbase';
+import {
+  describePocketBaseError,
+  getTemplateByKey,
+  listTemplates,
+  logError,
+  savePost,
+} from './pocketbase';
 import { renderTemplate } from './render';
 import { stripEmojis } from './sanitize';
 import { loadSeedTemplates } from './template-seed';
@@ -19,7 +25,7 @@ function slugify(value: string): string {
 
 /**
  * Templates come from PocketBase. If the database is empty or unreachable the
- * on-disk starter set takes over, so a missing container degrades the feature
+ * on-disk starter set takes over, so a missing database degrades the feature
  * set rather than breaking generation entirely.
  */
 async function resolveTemplates(warnings: string[]): Promise<HtmlTemplate[]> {
@@ -64,8 +70,8 @@ export interface GenerateInput {
 }
 
 /**
- * Phase 1 through Phase 4 of the specification: ingestion, analysis, HTML
- * rendering, and compilation. Phase 5 happens in the browser.
+ * Ingestion, analysis, HTML rendering, compilation, and persistence.
+ * The browser only ever sees the record id that comes out of this.
  */
 export async function runGeneration(input: GenerateInput): Promise<GenerateResult> {
   const warnings: string[] = [];
@@ -120,29 +126,62 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
   // Phase 3: merge the payload into the raw HTML.
   const html = renderTemplate(template, { ...payload, template_key: template.template_key });
 
-  // Phase 4: compile through Gotenberg.
-  const conversion = await convertHtml(html, input.postMode);
+  // Phase 4: render through headless Chromium.
+  const { asset, thumbnail, overflowingSlides } = await renderSlides(html, input.postMode);
+
+  if (overflowingSlides.length > 0) {
+    // The slide was shrunk as far as it can legibly go and the copy still does
+    // not fit, so something is being clipped. Better to say so than to publish
+    // a slide with its last bullet missing.
+    warnings.push(
+      `Slide ${overflowingSlides.join(', ')} has more text than fits the frame and may be ` +
+        'cut off at the bottom. Generate again for shorter copy.',
+    );
+  }
 
   const caption = stripEmojis(payload.caption);
+  const projectTitle = payload.project_title || input.sourceName;
+  const fileName = `${slugify(projectTitle)}.${asset.extension}`;
 
-  const recordId = await logGeneratedPost({
-    input_type: input.inputType,
-    source_name: input.sourceName,
-    post_mode: input.postMode,
-    caption_text: caption,
-    chosen_template_key: template.template_key,
-  });
+  // Phase 5: save it, binary included, so it can be reopened later.
+  let postId: string | null = null;
+  try {
+    postId = await savePost({
+      input_type: input.inputType,
+      source_name: input.sourceName,
+      post_mode: input.postMode,
+      caption_text: caption,
+      chosen_template_key: template.template_key,
+      template_name: template.template_name,
+      project_title: projectTitle,
+      slide_count: asset.slideCount,
+      mime_type: asset.mimeType,
+      file_name: fileName,
+      hashtags: payload.hashtags,
+      asset: asset.buffer,
+      thumbnail,
+    });
+  } catch (error) {
+    // The post exists and is good; only the saving failed. Hand the bytes to
+    // the browser rather than throwing away a finished carousel.
+    const reason = describePocketBaseError(error);
+    warnings.push(
+      `The post was generated but could not be saved to your history, so it will not appear ` +
+        `under Previous Posts. Download it now if you want to keep it. ${reason}`,
+    );
+    await logError({ stage: 'save-post', message: reason, details: String(error) });
+  }
 
   return {
+    postId,
+    ...(postId ? {} : { fallbackBase64: asset.buffer.toString('base64') }),
     caption,
     templateKey: template.template_key,
     templateName: template.template_name,
     postMode: input.postMode,
-    slideCount: input.postMode === 'image' ? 1 : payload.slides.length,
-    fileBase64: conversion.buffer.toString('base64'),
-    fileName: `${slugify(payload.project_title || input.sourceName)}.${conversion.extension}`,
-    mimeType: conversion.mimeType,
-    recordId,
+    slideCount: asset.slideCount,
+    fileName,
+    mimeType: asset.mimeType,
     warnings,
   };
 }

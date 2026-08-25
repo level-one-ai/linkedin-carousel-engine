@@ -26,8 +26,13 @@ export const config = {
   get geminiModel() {
     return optional('GEMINI_MODEL', 'gemini-2.5-flash');
   },
-  get gotenbergUrl() {
-    return optional('GOTENBERG_URL', 'http://gotenberg:3000').replace(/\/$/, '');
+  /**
+   * Explicit Chromium binary. Empty means "discover one", which lib/chromium.ts
+   * does by looking through Playwright's downloads and the usual Chrome, Chromium
+   * and Edge locations. The Docker image sets this to /usr/bin/chromium.
+   */
+  get chromiumPath() {
+    return optional('PDF_CHROMIUM_PATH', '');
   },
   get pocketbaseUrl() {
     return optional('POCKETBASE_URL', 'http://pocketbase:8090').replace(/\/$/, '');
@@ -52,7 +57,7 @@ export function environmentReport() {
   return [
     { key: 'GEMINI_API_KEY', set: Boolean(process.env.GEMINI_API_KEY), required: true },
     { key: 'GEMINI_MODEL', set: Boolean(process.env.GEMINI_MODEL), required: false },
-    { key: 'GOTENBERG_URL', set: Boolean(process.env.GOTENBERG_URL), required: false },
+    { key: 'PDF_CHROMIUM_PATH', set: Boolean(process.env.PDF_CHROMIUM_PATH), required: false },
     { key: 'POCKETBASE_URL', set: Boolean(process.env.POCKETBASE_URL), required: false },
     {
       key: 'POCKETBASE_ADMIN_EMAIL',

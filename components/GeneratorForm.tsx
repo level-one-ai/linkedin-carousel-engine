@@ -1,18 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
+  Download,
   FileArchive,
-  FileText,
-  Images,
-  Loader2,
+  Image as ImageIcon,
+  Layers,
   Sparkles,
   Upload,
   X,
 } from 'lucide-react';
-import CaptionBox from './CaptionBox';
-import PdfDrawer from './PdfDrawer';
+import { useRouter } from 'next/navigation';
+
+import GeneratingLoader from './GeneratingLoader';
+import HealthLine from './HealthLine';
 import type { GenerateResult, PostMode } from '@/lib/types';
 
 interface TemplateSummary {
@@ -21,7 +24,12 @@ interface TemplateSummary {
   category: string;
 }
 
-/** Turns the base64 payload from the API into a blob URL the viewer can read. */
+const MODES: Array<{ id: PostMode; label: string; icon: typeof Layers; hint: string }> = [
+  { id: 'carousel', label: 'PDF Carousel', icon: Layers, hint: 'Multi page, 1080 x 1350' },
+  { id: 'image', label: 'Single Image', icon: ImageIcon, hint: 'One PNG, 1080 x 1350' },
+];
+
+/** Turns the fallback base64 into a blob URL when a post could not be saved. */
 function toObjectUrl(base64: string, mimeType: string): string {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -29,7 +37,9 @@ function toObjectUrl(base64: string, mimeType: string): string {
   return URL.createObjectURL(new Blob([bytes], { type: mimeType }));
 }
 
-export default function GeneratorForm() {
+export default function GeneratorForm({ onBusyChange }: { onBusyChange?: (busy: boolean) => void }) {
+  const router = useRouter();
+
   const [postMode, setPostMode] = useState<PostMode>('carousel');
   const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -38,9 +48,8 @@ export default function GeneratorForm() {
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<GenerateResult | null>(null);
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  /** Only set when the post was generated but could not be saved. */
+  const [rescue, setRescue] = useState<{ result: GenerateResult; url: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const objectUrlRef = useRef<string | null>(null);
 
@@ -51,13 +60,16 @@ export default function GeneratorForm() {
       .catch(() => setTemplates([]));
   }, []);
 
-  // Blob URLs leak until they are revoked, so the previous one is released
-  // whenever a new result replaces it and when the page unmounts.
+  // Blob URLs leak until revoked.
   useEffect(() => {
     return () => {
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
 
   const pickFile = useCallback((candidate: File | null) => {
     if (!candidate) return;
@@ -78,6 +90,7 @@ export default function GeneratorForm() {
 
     setBusy(true);
     setError(null);
+    setRescue(null);
 
     const form = new FormData();
     form.append('postMode', postMode);
@@ -91,193 +104,217 @@ export default function GeneratorForm() {
 
       if (!response.ok) {
         setError(data.error ?? 'Generation failed.');
+        setBusy(false);
         return;
       }
 
-      const payload = data as GenerateResult;
-      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-      const url = toObjectUrl(payload.fileBase64, payload.mimeType);
-      objectUrlRef.current = url;
+      const result = data as GenerateResult;
 
-      setResult(payload);
-      setFileUrl(url);
-      // Phase 5: the preview drawer opens on its own once assets are ready.
-      setDrawerOpen(true);
+      if (result.postId) {
+        // Straight to the finished post. Nothing opens until it is written and
+        // saved, so the page is never half-there.
+        router.push(`/posts/${result.postId}`);
+        // No setBusy(false): the page is navigating away, and dropping the
+        // loader first would flash a finished-looking form for half a second.
+        return;
+      }
+
+      // Saved nowhere, but the file is real. Offer it directly rather than
+      // losing a finished carousel to a database problem.
+      if (result.fallbackBase64) {
+        if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+        const url = toObjectUrl(result.fallbackBase64, result.mimeType);
+        objectUrlRef.current = url;
+        setRescue({ result, url });
+      }
+      setError(result.warnings.join(' '));
+      setBusy(false);
     } catch (requestError) {
       setError(
         requestError instanceof Error ? requestError.message : 'The request could not complete.',
       );
-    } finally {
       setBusy(false);
     }
   }
 
-  const modes: Array<{ id: PostMode; label: string; icon: typeof Images; hint: string }> = [
-    { id: 'carousel', label: 'PDF Carousel', icon: Images, hint: 'Multi page 1080 x 1350 PDF' },
-    { id: 'image', label: 'Single Image Post', icon: FileText, hint: 'One 1080 x 1350 PNG' },
-  ];
-
   return (
-    <div className="grid gap-8 lg:grid-cols-5">
-      <section className="lg:col-span-3 space-y-6">
-        <div className="rounded-2xl border border-edge bg-panel p-6">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
-            Post mode
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {modes.map((mode) => {
-              const Icon = mode.icon;
-              const active = postMode === mode.id;
-              return (
-                <button
-                  key={mode.id}
-                  type="button"
-                  onClick={() => setPostMode(mode.id)}
-                  className={`rounded-xl border p-4 text-left transition ${
-                    active
-                      ? 'border-accent bg-accent/10'
-                      : 'border-edge bg-ink hover:border-slate-600'
-                  }`}
-                >
-                  <Icon className={`mb-2 h-5 w-5 ${active ? 'text-accent' : 'text-slate-400'}`} />
-                  <div className="font-semibold">{mode.label}</div>
-                  <div className="text-sm text-slate-400">{mode.hint}</div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+    <AnimatePresence mode="wait">
+      {busy ? (
+        <motion.div key="loading" className="flex justify-center py-16">
+          <GeneratingLoader />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="form"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          className="space-y-5"
+        >
+          <section className="card">
+            <h2 className="mb-3 text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
+              Post format
+            </h2>
+            <div className="grid gap-3 xs:grid-cols-2">
+              {MODES.map((mode) => {
+                const Icon = mode.icon;
+                const active = postMode === mode.id;
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => setPostMode(mode.id)}
+                    aria-pressed={active}
+                    className={`rounded-2xl border p-4 text-left transition-colors ${
+                      active
+                        ? 'border-foreground/40 bg-white/80'
+                        : 'border-line bg-white/40 hover:border-foreground/25'
+                    }`}
+                  >
+                    <Icon
+                      className={`mb-2 h-4 w-4 ${active ? 'text-foreground' : 'text-muted'}`}
+                      aria-hidden
+                    />
+                    <div className="text-fluid-sm font-semibold text-foreground">{mode.label}</div>
+                    <div className="text-fluid-xs text-muted">{mode.hint}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
 
-        <div className="rounded-2xl border border-edge bg-panel p-6">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
-            Source material
-          </h2>
+          <section className="card">
+            <h2 className="mb-3 text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
+              What is it about
+            </h2>
 
-          <div
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDragging(false);
-              pickFile(event.dataTransfer.files?.[0] ?? null);
-            }}
-            onClick={() => inputRef.current?.click()}
-            className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition ${
-              dragging ? 'border-accent bg-accent/10' : 'border-edge hover:border-slate-600'
-            }`}
-          >
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".zip,application/zip"
-              className="hidden"
-              onChange={(event) => pickFile(event.target.files?.[0] ?? null)}
-            />
-            {file ? (
-              <div className="flex items-center gap-3">
-                <FileArchive className="h-5 w-5 text-accent" />
-                <span className="font-medium">{file.name}</span>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setFile(null);
-                    if (inputRef.current) inputRef.current.value = '';
-                  }}
-                  className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white"
-                  aria-label="Remove file"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <>
-                <Upload className="mb-2 h-6 w-6 text-slate-400" />
-                <p className="font-medium">Drop a project .zip here</p>
-                <p className="text-sm text-slate-400">
-                  node_modules, .git, dist and .next are skipped automatically
-                </p>
-              </>
-            )}
-          </div>
-
-          <div className="my-4 flex items-center gap-3 text-xs uppercase tracking-widest text-slate-500">
-            <span className="h-px flex-1 bg-edge" />
-            or describe it
-            <span className="h-px flex-1 bg-edge" />
-          </div>
-
-          <textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            rows={6}
-            placeholder="Describe the system, the problem it solves, and the stack behind it."
-            className="w-full resize-y rounded-xl border border-edge bg-ink p-4 text-sm outline-none focus:border-accent"
-          />
-
-          <label className="mt-4 block text-sm text-slate-400">
-            Template
-            <select
-              value={templateKey}
-              onChange={(event) => setTemplateKey(event.target.value)}
-              className="mt-1 w-full rounded-xl border border-edge bg-ink p-3 text-sm text-slate-100 outline-none focus:border-accent"
+            <div
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDragging(false);
+                pickFile(event.dataTransfer.files?.[0] ?? null);
+              }}
+              onClick={() => inputRef.current?.click()}
+              className={`flex cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed p-8 text-center transition-colors ${
+                dragging ? 'border-foreground/50 bg-white/80' : 'border-line bg-white/40 hover:border-foreground/30'
+              }`}
             >
-              <option value="">Let the model choose</option>
-              {templates.map((template) => (
-                <option key={template.template_key} value={template.template_key}>
-                  {template.template_name}
-                </option>
-              ))}
-            </select>
-          </label>
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".zip,application/zip"
+                className="hidden"
+                onChange={(event) => pickFile(event.target.files?.[0] ?? null)}
+              />
+              {file ? (
+                <div className="flex items-center gap-3">
+                  <FileArchive className="h-4 w-4 text-foreground" aria-hidden />
+                  <span className="text-fluid-sm font-medium text-foreground">{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setFile(null);
+                      if (inputRef.current) inputRef.current.value = '';
+                    }}
+                    className="rounded-full p-1 text-muted transition-colors hover:bg-canvas-deep hover:text-foreground"
+                    aria-label="Remove file"
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Upload className="mb-2 h-5 w-5 text-muted" aria-hidden />
+                  <p className="text-fluid-sm font-medium text-foreground">
+                    Drop a project .zip here
+                  </p>
+                  <p className="mt-1 text-fluid-xs text-muted">
+                    node_modules, .git, dist and .next are skipped automatically
+                  </p>
+                </>
+              )}
+            </div>
 
-          <button
-            type="button"
-            onClick={submit}
-            disabled={busy}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60"
-          >
-            {busy ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Analyzing, rendering, and compiling
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Generate post
-              </>
-            )}
-          </button>
+            <div className="my-4 flex items-center gap-3 text-fluid-xs uppercase tracking-widest text-muted">
+              <span className="h-px flex-1 bg-line" />
+              or describe it
+              <span className="h-px flex-1 bg-line" />
+            </div>
 
-          {error && (
-            <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={6}
+              placeholder="Describe the system, the problem it solves, and the stack behind it."
+              className="field-input resize-y"
+            />
+
+            <label className="mt-4 block text-fluid-xs uppercase tracking-widest text-muted">
+              Slide design
+              <select
+                value={templateKey}
+                onChange={(event) => setTemplateKey(event.target.value)}
+                className="field-input mt-1.5 text-fluid-sm normal-case tracking-normal"
+              >
+                <option value="">Let the model choose</option>
+                {templates.map((template) => (
+                  <option key={template.template_key} value={template.template_key}>
+                    {template.template_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button type="button" onClick={submit} className="btn-primary mt-5 w-full">
+              <Sparkles className="h-4 w-4" aria-hidden />
+              Generate post
+            </button>
+
+            <HealthLine />
+          </section>
+
+          {error ? (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-2xl border border-amber-300/60 bg-amber-50/80 px-4 py-3 text-fluid-xs text-amber-900"
+            >
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
               <span>{error}</span>
             </div>
-          )}
-        </div>
-      </section>
+          ) : null}
 
-      <section className="lg:col-span-2">
-        <CaptionBox
-          result={result}
-          fileUrl={fileUrl}
-          onOpenDrawer={() => setDrawerOpen(true)}
-        />
-      </section>
-
-      <PdfDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        fileUrl={fileUrl}
-        fileName={result?.fileName ?? 'linkedin-post'}
-        mimeType={result?.mimeType ?? 'application/pdf'}
-        slideCount={result?.slideCount ?? 0}
-      />
-    </div>
+          {rescue ? (
+            <div className="card">
+              <h2 className="text-fluid-sm font-semibold text-foreground">
+                Your post is ready but was not saved
+              </h2>
+              <p className="mt-1 text-fluid-xs text-muted">
+                It will not appear under Previous Posts. Download it now to keep it.
+              </p>
+              <a
+                href={rescue.url}
+                download={rescue.result.fileName}
+                className="btn-primary mt-4 !px-5 !py-2 !text-fluid-xs"
+              >
+                <Download className="h-3.5 w-3.5" aria-hidden />
+                Download {rescue.result.mimeType === 'application/pdf' ? 'PDF' : 'PNG'}
+              </a>
+              <textarea
+                readOnly
+                value={rescue.result.caption}
+                rows={10}
+                className="field-input mt-4 resize-y text-fluid-sm"
+              />
+            </div>
+          ) : null}
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

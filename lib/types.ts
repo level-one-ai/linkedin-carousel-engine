@@ -29,16 +29,46 @@ export interface HtmlTemplate {
   raw_html: string;
 }
 
+/**
+ * One saved post, as the history grid and the detail screen see it.
+ * The binary never travels with this — it is fetched from
+ * /api/posts/[id]/file so the bytes are streamed rather than base64 inlined.
+ */
+export interface PostSummary {
+  id: string;
+  project_title: string;
+  caption_text: string;
+  input_type: InputType;
+  source_name: string;
+  post_mode: PostMode;
+  chosen_template_key: string;
+  template_name: string;
+  slide_count: number;
+  mime_type: string;
+  file_name: string;
+  hashtags: string[];
+  hasAsset: boolean;
+  hasThumbnail: boolean;
+  created: string;
+}
+
+/** What /api/generate returns once the post is written and saved. */
 export interface GenerateResult {
+  /** PocketBase record id, or null when the post could not be saved. */
+  postId: string | null;
   caption: string;
   templateKey: string;
   templateName: string;
   postMode: PostMode;
   slideCount: number;
-  /** Base64 of the PDF or PNG binary produced by Gotenberg. */
-  fileBase64: string;
   fileName: string;
   mimeType: string;
-  recordId: string | null;
   warnings: string[];
+  /**
+   * The rendered bytes, present ONLY when the post could not be saved.
+   * A finished carousel must never be lost because the database was down, so
+   * the failure path hands it straight to the browser instead. On the happy
+   * path this is absent and the file is streamed from /api/posts/[id]/file.
+   */
+  fallbackBase64?: string;
 }

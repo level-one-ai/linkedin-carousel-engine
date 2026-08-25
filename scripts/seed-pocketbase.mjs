@@ -86,13 +86,44 @@ const COLLECTIONS = [
     name: 'generated_posts',
     type: 'base',
     // Written by the server while signed in as the superuser, so no public
-    // rules are opened up here.
+    // rules are opened up here. The files are `protected` on top of that, so
+    // they can only be fetched with a token minted server side.
     fields: [
       { name: 'input_type', type: 'text', required: true },
       { name: 'source_name', type: 'text', required: false },
       { name: 'post_mode', type: 'text', required: true },
+      // A blank max on a PocketBase text field does NOT mean unlimited: it
+      // means 5000, and a long carousel caption goes past that.
       { name: 'caption_text', type: 'text', required: true, max: 6000 },
       { name: 'chosen_template_key', type: 'text', required: true },
+      { name: 'template_name', type: 'text', required: false },
+      { name: 'project_title', type: 'text', required: false },
+      { name: 'slide_count', type: 'number', required: false },
+      { name: 'mime_type', type: 'text', required: false },
+      { name: 'file_name', type: 'text', required: false },
+      { name: 'hashtags', type: 'json', maxSize: 200000 },
+      // The carousel PDF or the single PNG. This is what makes a post
+      // reopenable rather than a one-time download.
+      {
+        name: 'asset',
+        type: 'file',
+        maxSelect: 1,
+        maxSize: 10485760,
+        protected: true,
+      },
+      // Slide one as a JPEG, so the history grid does not have to render a
+      // PDF per card just to show a picture.
+      {
+        name: 'thumbnail',
+        type: 'file',
+        maxSelect: 1,
+        maxSize: 2097152,
+        protected: true,
+      },
+      // The history grid sorts on `created`. Without these fields declared,
+      // that sort is a 400 on the listing rather than an empty page.
+      { name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
+      { name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
     ],
     indexes: [],
   },
@@ -166,25 +197,55 @@ async function authenticate() {
   token = legacy.token;
 }
 
-async function collectionExists(name) {
+async function getCollection(name) {
   try {
-    await api(`/api/collections/${name}`);
-    return true;
+    return await api(`/api/collections/${name}`);
   } catch (error) {
-    if (error.status === 404) return false;
+    if (error.status === 404) return null;
     throw error;
   }
 }
 
 async function ensureCollections() {
   for (const definition of COLLECTIONS) {
-    if (await collectionExists(definition.name)) {
-      console.log(`Collection ${definition.name} already exists, leaving it as is.`);
+    const existing = await getCollection(definition.name);
+    if (existing) {
+      await addMissingFields(existing, definition);
       continue;
     }
     await createCollection(definition);
     console.log(`Created collection ${definition.name}.`);
   }
+}
+
+/**
+ * Adds fields this version of the app needs to a collection made by an older
+ * one.
+ *
+ * Without this, someone who seeded before file storage existed would keep a
+ * `generated_posts` with no `asset` field — and PocketBase discards an unknown
+ * field on create WITHOUT complaining, so every post would save its caption
+ * and silently lose its carousel. Existing fields are never touched, so a max
+ * length or rule changed by hand in the Admin UI survives a reseed.
+ */
+async function addMissingFields(existing, definition) {
+  const current = existing.fields ?? existing.schema ?? [];
+  const have = new Set(current.map((field) => field.name));
+  const missing = definition.fields.filter((field) => !have.has(field.name));
+
+  if (missing.length === 0) {
+    console.log(`Collection ${definition.name} is up to date.`);
+    return;
+  }
+
+  const key = existing.fields ? 'fields' : 'schema';
+  await api(`/api/collections/${existing.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ [key]: [...current, ...missing] }),
+  });
+  console.log(
+    `Updated ${definition.name}: added ${missing.map((field) => field.name).join(', ')}.`,
+  );
 }
 
 /**

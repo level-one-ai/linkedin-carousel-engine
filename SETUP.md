@@ -1,7 +1,9 @@
 # Setup Guide
 
-This guide walks you through starting the engine for the first time. It is written in plain
+This guide gets the engine running on your own computer for the first time. It is written in plain
 language. You do not need to be an expert to follow it. Just do the steps in order.
+
+Putting it on a server instead? See [COOLIFY.md](COOLIFY.md).
 
 Plan on about 15 minutes.
 
@@ -9,16 +11,18 @@ Plan on about 15 minutes.
 
 ## What you need before you start
 
-1. **Docker Desktop.** This runs the three parts of the system for you. Download it from
+1. **Docker Desktop.** This runs the database for you. Download it from
    [docker.com](https://www.docker.com/products/docker-desktop/) and install it. Open it once so it
    is running. You will see a small whale icon in your menu bar or task bar when it is on.
-2. **A Google account.** You need one to get a free Gemini key in Step 2.
-3. **A terminal.** On a Mac this is called Terminal. On Windows it is called PowerShell. You type
+2. **Google Chrome.** You almost certainly already have it. The app uses it behind the scenes to
+   turn your slides into a PDF. Any of Chrome, Chromium or Microsoft Edge will do.
+3. **A Google account.** You need one to get a free Gemini key in Step 3.
+4. **A terminal.** On a Mac this is called Terminal. On Windows it is called PowerShell. You type
    commands into it. Every command in this guide can be copied and pasted.
 
 ---
 
-## Step 1: Get the code and open the folder
+## Step 1: Open the project folder
 
 Open your terminal and type this, then press Enter:
 
@@ -26,7 +30,7 @@ Open your terminal and type this, then press Enter:
 cd linkedin-carousel-engine
 ```
 
-This moves you into the project folder. Every other command in this guide assumes you are here.
+Every other command in this guide assumes you are here.
 
 ---
 
@@ -38,11 +42,11 @@ The project ships with an example settings file. You will make your own copy and
 cp .env.example .env.local
 ```
 
-Now open `.env.local` in any text editor. It has six settings in it. The next steps explain what
-each one is and where to get it.
+Now open `.env.local` in any text editor. Notepad, TextEdit or VS Code all work fine. It has six
+settings in it. The next steps explain what each one is and where to get it.
 
 **Important:** `.env.local` holds your private keys. It is already listed in `.gitignore`, so it
-will never be uploaded or shared. Do not paste its contents into a chat, an email, or a screenshot.
+will never be uploaded or shared. Do not paste its contents into a chat, an email or a screenshot.
 
 ---
 
@@ -57,10 +61,11 @@ writes the post text.
 
 1. Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
 2. Sign in with your Google account.
-3. Click the blue **Create API key** button.
-4. A long string of letters and numbers appears. It starts with `AIza`. Click the copy button next
-   to it.
-5. Open `.env.local` and paste it after the equals sign, like this:
+3. The first time, it shows you the terms of service. Tick the box and click **Continue**.
+4. Click the blue **Create API key** button.
+5. If it asks which project to use, choose **Create API key in new project**.
+6. A long string of letters and numbers appears. It starts with `AIza`. Click the copy button.
+7. Open `.env.local` and paste it after the equals sign, like this:
 
 ```
 GEMINI_API_KEY=AIzaSyDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -69,8 +74,11 @@ GEMINI_API_KEY=AIzaSyDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Do not put quotes or spaces around it. Just paste it right after the `=` sign.
 
 **Keep it secret.** Anyone who has this key can spend money on your Google account. If you ever
-paste it somewhere public by mistake, go back to that same page and delete the key, then make a new
-one.
+paste it somewhere public by mistake, go back to that same page, delete the key, and make a new
+one. It takes ten seconds.
+
+**Does it cost money?** Google gives you a free allowance. The Flash models have a free daily
+limit that is generous for writing a few posts a week.
 
 ---
 
@@ -86,41 +94,39 @@ Leave it as it is:
 GEMINI_MODEL=gemini-2.5-flash
 ```
 
-This model is fast and cheap. Only change it if you know you want a different one.
+This model is fast and cheap. Because it is just a setting, you can switch to a newer one later by
+editing this one word. The model dropdown at [aistudio.google.com](https://aistudio.google.com) is
+the real list for your own key.
 
 ---
 
-## Step 5: Set the two addresses (GOTENBERG_URL and POCKETBASE_URL)
+## Step 5: Set the database address (POCKETBASE_URL)
 
-**What they are:** Street addresses for the two helper programs.
+**What it is:** The address of the small database that stores your slide designs and every post you
+have made.
 
-- **Gotenberg** is the program that turns your slides into a PDF file.
-- **PocketBase** is the small database that stores your slide designs and your post history.
+**Is it required?** No, but the right value depends on how you run the app.
 
-**Is it required?** No, but the right value depends on how you run the app. Pick one of the two
-setups below.
-
-**Setup A: everything in Docker (the easy way, and what most people should use).**
-The three programs talk to each other by name. Use these values:
+**If you run the app yourself with `npm run dev`** (which is what this guide does):
 
 ```
-GOTENBERG_URL=http://gotenberg:3000
-POCKETBASE_URL=http://pocketbase:8090
-```
-
-**Setup B: helpers in Docker, but you run the app yourself with `npm run dev`.**
-Now the app is outside Docker, so it has to reach the helpers through your own computer. Use these
-values instead:
-
-```
-GOTENBERG_URL=http://127.0.0.1:3000
 POCKETBASE_URL=http://127.0.0.1:8090
 ```
 
-`127.0.0.1` is just a nickname for "this computer."
+`127.0.0.1` is just a nickname for "this computer".
 
-If you are not sure, use Setup B while you are testing, because it is easier to see error messages
-that way.
+**If you run everything inside Docker instead**, the app reaches the database by its service name:
+
+```
+POCKETBASE_URL=http://pocketbase:8090
+```
+
+If you are not sure, use the first one. It is easier to see error messages that way.
+
+> **Already running the CV system?** You can point this at the same PocketBase. The two apps use
+> completely different collection names, so they share a database without ever touching each
+> other's data. Note that the CV app calls this setting `NEXT_PUBLIC_POCKETBASE_URL` and this one
+> calls it `POCKETBASE_URL`. That is deliberate. Both can hold the same address.
 
 ---
 
@@ -129,18 +135,22 @@ that way.
 **What they are:** A username and password for your own database. You are inventing these right
 now. They are not an account you sign up for anywhere.
 
-**Is it required?** Yes, if you want the app to save your slide designs and keep a history of your
-posts. That is almost certainly what you want.
+- The **email is only a username.** PocketBase never sends mail to it and never checks that it is
+  real.
+- The **password is one you invent right now.** It is not your email password. It is not your
+  Google password. **Do not reuse a real password here.**
+
+**Is it required?** Yes. Without it the app cannot save your posts, and Previous Posts stays empty.
 
 **How to do it:**
 
-First, start the helper programs:
+First, start the database:
 
 ```bash
-docker compose up -d gotenberg pocketbase
+docker compose up -d pocketbase
 ```
 
-Wait about 20 seconds for them to wake up.
+Wait about 20 seconds for it to wake up.
 
 Now create your admin account. Replace the email and password with your own. Pick a password that
 is at least 10 characters long:
@@ -148,6 +158,8 @@ is at least 10 characters long:
 ```bash
 docker compose exec pocketbase /usr/local/bin/pocketbase superuser upsert you@example.com YourPassword123
 ```
+
+You should see `Successfully saved superuser`.
 
 Then put those exact same two values in `.env.local`:
 
@@ -158,11 +170,54 @@ POCKETBASE_ADMIN_PASSWORD=YourPassword123
 
 They must match exactly, or the app cannot sign in to your database.
 
+**Check it worked:** open http://127.0.0.1:8090/_/ in your browser and sign in with those two
+things. If you get in, they are correct.
+
 ---
 
-## Step 7: Set the upload limit (MAX_UPLOAD_MB)
+## Step 7: Where Chrome is (PDF_CHROMIUM_PATH)
 
-**What it is:** The biggest project zip file the app will accept, measured in megabytes.
+**What it is:** Which copy of Chrome turns your slides into a PDF.
+
+**Is it required?** No. **Leave it blank.** The app looks for one itself, in this order:
+
+1. Any Chromium that Playwright has downloaded
+2. Google Chrome, in the normal place for your Mac, Windows or Linux machine
+3. Chromium
+4. Microsoft Edge
+
+```
+PDF_CHROMIUM_PATH=
+```
+
+**Only if it cannot find one.** If you see *"Could not find a Chrome or Chromium"*, either point it
+at a Chrome you already have:
+
+```
+# Mac
+PDF_CHROMIUM_PATH=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+# Windows
+PDF_CHROMIUM_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
+# Linux
+PDF_CHROMIUM_PATH=/usr/bin/chromium
+```
+
+Or install one, once:
+
+```bash
+npx playwright install --with-deps chromium
+```
+
+That downloads about 150MB and then you never think about it again.
+
+> **Why do slides need a web browser?** Your carousel is built as a web page first, then printed to
+> PDF. Chrome is what does the printing, which is why the PDF looks exactly like the design.
+
+---
+
+## Step 8: Set the upload limit (MAX_UPLOAD_MB)
+
+**What it is:** The biggest project zip file the app will accept, in megabytes.
 
 **Is it required?** No. The default is fine.
 
@@ -170,14 +225,13 @@ They must match exactly, or the app cannot sign in to your database.
 MAX_UPLOAD_MB=50
 ```
 
-If you have a very large project, raise this number. Most projects are far under 50 MB once you
-leave out the `node_modules` folder.
+Most projects are far under 50 MB once you leave out the `node_modules` folder.
 
 ---
 
-## Step 8: Load the starter slide designs
+## Step 9: Load the starter slide designs
 
-This command creates the database tables and loads four ready made slide designs into them.
+This creates the database tables and loads four ready made slide designs into them.
 
 ```bash
 npm install
@@ -186,29 +240,26 @@ npm run seed
 
 You should see lines like `Created collection html_templates.` and `Added template dark_technical.`
 
+**It is safe to run this again at any time.** Collections that already exist are left alone, and if
+a new version of the app needs an extra field, running it again adds just that field.
+
 If you see an error about signing in, go back to Step 6 and check that your email and password
 match in both places.
 
 ---
 
-## Step 9: Start the app
-
-**If you chose Setup A** (everything in Docker):
-
-```bash
-docker compose up -d
-```
-
-**If you chose Setup B** (you run the app yourself):
+## Step 10: Start the app
 
 ```bash
 npm run dev
 ```
 
-Either way, open your browser and go to **http://localhost:3001**
+Open your browser and go to **http://localhost:3001**
 
-At the top of the page you will see three status lights. All three should be green check marks. If
-one is a red X, the table below tells you what to fix.
+You should see the front door with two buttons: **Create New Post** and **Previous Posts**.
+
+Click Create New Post. If anything is not set up, a yellow box under the Generate button tells you
+exactly what. If there is no yellow box, everything is ready.
 
 ---
 
@@ -218,34 +269,37 @@ one is a red X, the table below tells you what to fix.
 | --- | --- | --- | --- |
 | `GEMINI_API_KEY` | Yes | Lets the app use Google's AI to write your post | You copy it from aistudio.google.com/apikey |
 | `GEMINI_MODEL` | No | Which AI model writes the post | Leave it as `gemini-2.5-flash` |
-| `GOTENBERG_URL` | No | Where the PDF maker lives | `http://gotenberg:3000` in Docker, `http://127.0.0.1:3000` outside it |
-| `POCKETBASE_URL` | No | Where the database lives | `http://pocketbase:8090` in Docker, `http://127.0.0.1:8090` outside it |
+| `POCKETBASE_URL` | No | Where the database lives | `http://127.0.0.1:8090` locally, `http://pocketbase:8090` inside Docker |
 | `POCKETBASE_ADMIN_EMAIL` | Yes | Your database username | You make it up in Step 6 |
 | `POCKETBASE_ADMIN_PASSWORD` | Yes | Your database password | You make it up in Step 6 |
+| `PDF_CHROMIUM_PATH` | No | Which Chrome makes the PDF | Leave blank; the app finds one |
 | `MAX_UPLOAD_MB` | No | Largest zip file allowed | Leave it at `50` |
 
 ---
 
 ## When something goes wrong
 
-**The Gemini light is red.**
+**"GEMINI_API_KEY is not set."**
 Your key is missing or misspelled. Open `.env.local` and check that `GEMINI_API_KEY=` has your key
 right after it with no spaces and no quote marks. Then restart the app.
 
-**The Gotenberg light is red.**
-The PDF maker is not running. Type `docker compose up -d gotenberg` and wait 20 seconds. Then click
-**Recheck** on the web page.
+**"No Chrome or Chromium was found."**
+See Step 7.
 
-**The PocketBase light is red.**
+**"PocketBase is unreachable."**
 The database is not running. Type `docker compose up -d pocketbase` and wait 20 seconds. If it is
-running but still red, check that `POCKETBASE_URL` matches your setup from Step 5.
+running but still unreachable, check that `POCKETBASE_URL` matches your setup from Step 5.
 
-**It says 0 templates.**
-You skipped Step 8, or it failed. Run `npm run seed` again and read the message it prints.
+**"PocketBase has no slide designs yet."**
+You skipped Step 9, or it failed. Run `npm run seed` again and read the message it prints.
+
+**A post generates but does not appear under Previous Posts.**
+The app will tell you this and offer the file for download so you do not lose it. It usually means
+the admin email and password are wrong, or `npm run seed` has not been run against this database.
 
 **I changed .env.local but nothing changed.**
-Settings are only read when the app starts. Stop it and start it again. In Docker that is
-`docker compose restart app`. If you used `npm run dev`, press Ctrl+C and run it again.
+Settings are only read when the app starts. Stop it with Ctrl+C and run `npm run dev` again. This
+fixes more problems than anything else on this page.
 
 **The app says my zip has no readable files.**
 The zip needs to hold the actual project code. If you zipped a folder that only had images or a
@@ -260,4 +314,4 @@ docker compose down
 ```
 
 Your database is saved in the `pocketbase/pb_data` folder on your computer, so nothing is lost when
-you stop. Start it again any time with `docker compose up -d`.
+you stop. Start it again any time with `docker compose up -d pocketbase`.

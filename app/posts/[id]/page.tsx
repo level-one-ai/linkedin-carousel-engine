@@ -2,46 +2,36 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Download, Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Download, Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
 import CopyButton from '@/components/CopyButton';
+import ImagePromptPanel from '@/components/ImagePromptPanel';
 import { formatDate } from '@/components/PostCard';
 import type { PostSummary } from '@/lib/types';
 
-// Reaches for browser only APIs, so it cannot be server-rendered.
-const PdfViewer = dynamic(() => import('@/components/PdfViewer'), {
+// Both reach for browser only APIs, so neither can be server-rendered.
+const LinkedInPreview = dynamic(() => import('@/components/LinkedInPreview'), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center gap-2 py-16 text-fluid-sm text-muted">
+    <div className="flex items-center justify-center gap-2 py-24 text-fluid-sm text-muted">
       <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-      Preparing preview
+      Building preview
     </div>
   ),
 });
 
-/** Preserves the model's paragraphing rather than collapsing it to one block. */
-function Prose({ text }: { text: string }) {
-  return (
-    <div className="space-y-3 text-fluid-base leading-relaxed text-foreground/90">
-      {text
-        .split(/(?:\r?\n){2,}/)
-        .filter(Boolean)
-        .map((paragraph, index) => (
-          <p key={index} className="whitespace-pre-line">
-            {paragraph}
-          </p>
-        ))}
-    </div>
-  );
-}
+const PdfViewer = dynamic(() => import('@/components/PdfViewer'), { ssr: false });
 
 /**
- * One finished post: the caption you paste into LinkedIn, and the slides you
- * attach to it. Both are read from the record rather than regenerated, so
- * opening a post from six weeks ago costs nothing and gives the same file.
+ * One finished post.
+ *
+ * The preview leads, because the question this screen answers is "does this
+ * work as a post". The panel beside it is for the things you then do with it:
+ * copy the caption, download the file, or — on an image post still waiting for
+ * its picture — fetch the prompt and bring the picture back.
  */
 export default function PostPage() {
   const params = useParams<{ id: string }>();
@@ -49,6 +39,10 @@ export default function PostPage() {
   const [post, setPost] = useState<PostSummary | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  // The all-slides list is mounted only once opened. A collapsed <details>
+  // still renders its children, so leaving it mounted downloaded the whole
+  // carousel a second time on every visit, in parallel with the preview.
+  const [slidesOpen, setSlidesOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,9 +65,14 @@ export default function PostPage() {
     };
   }, [params.id]);
 
-  const fileUrl = `/api/posts/${params.id}/file`;
-  const downloadUrl = `${fileUrl}?download=1`;
+  const isCarousel = post?.post_mode === 'carousel';
   const isPdf = post?.mime_type === 'application/pdf';
+  // Busted on every change to hasAsset so a freshly uploaded image is not
+  // served from the cache of the 404 that came before it.
+  const fileUrl = post?.hasAsset
+    ? `/api/posts/${params.id}/file?v=${post.hasAsset ? 1 : 0}`
+    : null;
+  const downloadUrl = `/api/posts/${params.id}/file?download=1`;
 
   return (
     <div className="custom-scrollbar h-screen overflow-y-auto">
@@ -115,8 +114,8 @@ export default function PostPage() {
                 </h1>
                 <p className="mt-2 text-fluid-xs text-muted">
                   {formatDate(post.created)}
-                  {post.template_name ? ` · ${post.template_name}` : ''}
-                  {` · ${post.post_mode === 'carousel' ? `${post.slide_count} slides` : 'Single image'}`}
+                  {` · ${isCarousel ? `Carousel, ${post.slide_count} slides` : 'Single image'}`}
+                  {isCarousel && post.template_name ? ` · ${post.template_name}` : ''}
                   {post.source_name ? ` · from ${post.source_name}` : ''}
                 </p>
               </div>
@@ -124,59 +123,91 @@ export default function PostPage() {
               {post.hasAsset ? (
                 <a href={downloadUrl} className="btn-primary !px-6 !py-2.5 !text-fluid-xs">
                   <Download className="h-3.5 w-3.5" aria-hidden />
-                  Download {isPdf ? 'PDF' : 'PNG'}
+                  Download {isPdf ? 'PDF' : 'image'}
                 </a>
               ) : null}
             </header>
 
-            <div className="grid items-start gap-6 lg:grid-cols-2">
-              {/* Sticky so the caption stays readable while scrolling a long
-                  carousel, rather than leaving a column of empty card. */}
-              <section className="card lg:sticky lg:top-10">
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <h2 className="text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
-                    Caption
-                  </h2>
-                  <CopyButton text={post.caption_text} label="Copy text" />
-                </div>
-
-                <Prose text={post.caption_text} />
-
-                {post.hashtags.length > 0 ? (
-                  <div className="mt-5 flex flex-wrap gap-2 border-t border-line pt-4">
-                    {post.hashtags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full border border-line bg-white/70 px-3 py-1 text-fluid-xs text-muted"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
+            <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+              <section className="lg:sticky lg:top-10">
+                <p className="mb-3 text-fluid-xs uppercase tracking-widest text-muted">
+                  How it will look
+                </p>
+                <LinkedInPreview post={post} fileUrl={fileUrl} />
               </section>
 
-              <section>
-                {!post.hasAsset ? (
+              <section className="space-y-4">
+                <div className="card">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <h2 className="text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
+                      Caption
+                    </h2>
+                    <CopyButton text={post.caption_text} label="Copy text" />
+                  </div>
+
+                  <p className="whitespace-pre-line text-fluid-sm leading-relaxed text-foreground/90">
+                    {post.caption_text}
+                  </p>
+
+                  {post.hashtags.length > 0 ? (
+                    <div className="mt-5 flex flex-wrap gap-2 border-t border-line pt-4">
+                      {post.hashtags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full border border-line bg-white/70 px-3 py-1 text-fluid-xs text-muted"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                {post.post_mode === 'image' ? (
+                  <ImagePromptPanel post={post} onUploaded={setPost} />
+                ) : null}
+
+                {isCarousel && post.hasAsset && fileUrl ? (
+                  <div className="card">
+                    <button
+                      type="button"
+                      onClick={() => setSlidesOpen((open) => !open)}
+                      aria-expanded={slidesOpen}
+                      className="flex w-full items-center justify-between gap-3 text-left"
+                    >
+                      <span className="text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
+                        Every slide
+                        <span className="ml-2 font-normal normal-case tracking-normal text-muted">
+                          ({post.slide_count})
+                        </span>
+                      </span>
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 text-muted transition-transform ${
+                          slidesOpen ? 'rotate-180' : ''
+                        }`}
+                        aria-hidden
+                      />
+                    </button>
+
+                    {slidesOpen ? (
+                      <div className="mt-4">
+                        <PdfViewer fileUrl={fileUrl} downloadUrl={downloadUrl} />
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {isCarousel && !post.hasAsset ? (
                   <div className="card">
                     <p className="text-fluid-sm font-semibold text-foreground">
                       No slides stored for this post
                     </p>
                     <p className="mt-2 text-fluid-sm text-muted">
-                      The caption was saved but the file was not. This happens to posts made
-                      before file storage was set up. Generate it again to get the slides.
+                      The caption was saved but the file was not. Generate it again to get the
+                      slides.
                     </p>
                   </div>
-                ) : isPdf ? (
-                  <PdfViewer fileUrl={fileUrl} downloadUrl={downloadUrl} />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={fileUrl}
-                    alt="Generated post graphic"
-                    className="w-full rounded-2xl border border-line shadow-[0_24px_80px_-40px_rgba(17,17,16,0.25)]"
-                  />
-                )}
+                ) : null}
               </section>
             </div>
           </motion.div>

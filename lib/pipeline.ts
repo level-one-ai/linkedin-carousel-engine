@@ -100,15 +100,9 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
     contextString = `===== PROJECT DESCRIPTION =====\n${description}`;
   }
 
-  // Phase 2: analysis, caption, template selection, and slide payload.
-  const templates = await resolveTemplates(warnings);
-
-  // Image mode is steered toward single frame templates when one exists.
-  const candidateTemplates =
-    input.postMode === 'image'
-      ? templates.filter((template) => template.template_key.startsWith('single_image'))
-      : templates.filter((template) => !template.template_key.startsWith('single_image'));
-  const selectable = candidateTemplates.length > 0 ? candidateTemplates : templates;
+  // Phase 2: analysis, caption, and either a slide payload or an image prompt.
+  // A single image post needs no design, so PocketBase is not consulted for one.
+  const selectable = input.postMode === 'image' ? [] : await resolveTemplates(warnings);
 
   const payload = await generateContentPayload({
     contextString,
@@ -116,6 +110,27 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
     templates: selectable,
     sourceName: input.sourceName,
   });
+
+  const projectTitle = payload.project_title || input.sourceName;
+
+  // A single image post stops here. The picture is made in Google Labs Flow
+  // from the prompt below and uploaded afterwards, so there is nothing to
+  // render and no file to save yet.
+  if (input.postMode === 'image') {
+    return finish({
+      input,
+      warnings,
+      caption: stripEmojis(payload.caption),
+      projectTitle,
+      hashtags: payload.hashtags,
+      imagePrompt: payload.image_prompt,
+      templateKey: 'user_image',
+      templateName: 'Uploaded image',
+      slideCount: 1,
+      mimeType: '',
+      fileName: '',
+    });
+  }
 
   const templateKey = input.forcedTemplateKey?.trim() || payload.template_key;
   const template = await resolveChosenTemplate(templateKey, selectable);
@@ -139,49 +154,88 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
     );
   }
 
-  const caption = stripEmojis(payload.caption);
-  const projectTitle = payload.project_title || input.sourceName;
-  const fileName = `${slugify(projectTitle)}.${asset.extension}`;
+  return finish({
+    input,
+    warnings,
+    caption: stripEmojis(payload.caption),
+    projectTitle,
+    hashtags: payload.hashtags,
+    imagePrompt: '',
+    templateKey: template.template_key,
+    templateName: template.template_name,
+    slideCount: asset.slideCount,
+    mimeType: asset.mimeType,
+    fileName: `${slugify(projectTitle)}.${asset.extension}`,
+    asset: asset.buffer,
+    thumbnail,
+  });
+}
 
-  // Phase 5: save it, binary included, so it can be reopened later.
+/**
+ * Saves the post and shapes the reply, for both kinds of post.
+ *
+ * A carousel arrives here with bytes; a single image post arrives with none and
+ * gets them later through the upload route. Everything after that split is the
+ * same, so it lives in one place.
+ */
+async function finish(args: {
+  input: GenerateInput;
+  warnings: string[];
+  caption: string;
+  projectTitle: string;
+  hashtags: string[];
+  imagePrompt: string;
+  templateKey: string;
+  templateName: string;
+  slideCount: number;
+  mimeType: string;
+  fileName: string;
+  asset?: Buffer;
+  thumbnail?: Buffer;
+}): Promise<GenerateResult> {
+  const { input, warnings } = args;
   let postId: string | null = null;
+
   try {
     postId = await savePost({
       input_type: input.inputType,
       source_name: input.sourceName,
       post_mode: input.postMode,
-      caption_text: caption,
-      chosen_template_key: template.template_key,
-      template_name: template.template_name,
-      project_title: projectTitle,
-      slide_count: asset.slideCount,
-      mime_type: asset.mimeType,
-      file_name: fileName,
-      hashtags: payload.hashtags,
-      asset: asset.buffer,
-      thumbnail,
+      caption_text: args.caption,
+      chosen_template_key: args.templateKey,
+      template_name: args.templateName,
+      project_title: args.projectTitle,
+      slide_count: args.slideCount,
+      mime_type: args.mimeType,
+      file_name: args.fileName,
+      hashtags: args.hashtags,
+      image_prompt: args.imagePrompt,
+      asset: args.asset,
+      thumbnail: args.thumbnail,
     });
   } catch (error) {
-    // The post exists and is good; only the saving failed. Hand the bytes to
-    // the browser rather than throwing away a finished carousel.
     const reason = describePocketBaseError(error);
     warnings.push(
-      `The post was generated but could not be saved to your history, so it will not appear ` +
-        `under Previous Posts. Download it now if you want to keep it. ${reason}`,
+      args.asset
+        ? `The post was generated but could not be saved to your history, so it will not ` +
+          `appear under Previous Posts. Download it now if you want to keep it. ${reason}`
+        : `The post was written but could not be saved, so there is nowhere to upload the ` +
+          `image to. Copy the caption and the prompt below before leaving this page. ${reason}`,
     );
     await logError({ stage: 'save-post', message: reason, details: String(error) });
   }
 
   return {
     postId,
-    ...(postId ? {} : { fallbackBase64: asset.buffer.toString('base64') }),
-    caption,
-    templateKey: template.template_key,
-    templateName: template.template_name,
+    ...(postId || !args.asset ? {} : { fallbackBase64: args.asset.toString('base64') }),
+    caption: args.caption,
+    templateKey: args.templateKey,
+    templateName: args.templateName,
     postMode: input.postMode,
-    slideCount: asset.slideCount,
-    fileName,
-    mimeType: asset.mimeType,
+    slideCount: args.slideCount,
+    fileName: args.fileName,
+    mimeType: args.mimeType,
+    imagePrompt: args.imagePrompt,
     warnings,
   };
 }

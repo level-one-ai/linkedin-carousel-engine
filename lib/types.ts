@@ -1,7 +1,16 @@
 export type PostMode = 'carousel' | 'image';
 export type InputType = 'zip' | 'text';
 
+/**
+ * Where a slide sits in the eight-slide blueprint. Templates style on this,
+ * so a cover, a checklist and a call to action can look completely different
+ * without the template needing eight hardcoded blocks.
+ */
+export type SlideRole = 'hook' | 'problem' | 'point' | 'summary' | 'cta';
+
 export interface SlideContent {
+  /** Position in the blueprint. Defaults to "point" for a middle slide. */
+  role?: SlideRole;
   /** Slide headline. Kept short so it fits the 1080x1350 canvas. */
   heading: string;
   /** One or two sentences of supporting copy. */
@@ -19,6 +28,11 @@ export interface GeneratedPayload {
   project_subtitle: string;
   slides: SlideContent[];
   hashtags: string[];
+  /**
+   * Single image posts only: the prompt to paste into Google Labs Flow.
+   * Empty for carousels, which make their own picture.
+   */
+  image_prompt: string;
 }
 
 export interface HtmlTemplate {
@@ -47,6 +61,8 @@ export interface PostSummary {
   mime_type: string;
   file_name: string;
   hashtags: string[];
+  /** The Google Labs Flow prompt, on single image posts. */
+  image_prompt: string;
   hasAsset: boolean;
   hasThumbnail: boolean;
   created: string;
@@ -63,6 +79,8 @@ export interface GenerateResult {
   slideCount: number;
   fileName: string;
   mimeType: string;
+  /** Single image posts only: the prompt to paste into Google Labs Flow. */
+  imagePrompt: string;
   warnings: string[];
   /**
    * The rendered bytes, present ONLY when the post could not be saved.

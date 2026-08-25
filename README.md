@@ -1,8 +1,9 @@
 # Automated AI LinkedIn Carousel and Content Generator Engine
 
 Turns a project `.zip` or a plain text description into a publication ready LinkedIn post: a
-written caption plus a 1080 x 1350 PDF carousel or a single PNG graphic. Every post is saved, so
-you can reopen one from six weeks ago and get the same caption and the same file back.
+written caption plus either a 1080 x 1350 PDF carousel it renders itself, or an image prompt you
+run through Google Labs Flow and upload back. Every post is saved, so you can reopen one from six
+weeks ago and get the same caption and the same file back.
 
 No third party SaaS. Gemini writes the words, a headless Chromium renders the pixels, and a self
 hosted PocketBase stores the slide designs and the history.
@@ -16,10 +17,23 @@ hosted PocketBase stores the slide designs and the history.
 
 The front door has two buttons.
 
-- **Create New Post** takes a `.zip` or a description, writes the post, renders the slides, saves
-  it, and opens it.
-- **Previous Posts** is every post you have made, as cards. Click one and it opens in full: the
-  caption with a copy button, the slides page by page, and a download.
+- **Create New Post** takes a `.zip` or a description and a **Type**: Carousel or Single Image.
+- **Previous Posts** is every post you have made, as cards. Click one and it opens as a LinkedIn
+  post preview: the real caption truncation, the carousel you can page through, the action row.
+
+### The two types
+
+**Carousel.** Gemini picks one of your five slide designs, writes eight slides against a fixed
+blueprint, and Chromium renders them to a 1080 x 1350 PDF. Caption and PDF are saved together and
+the post opens straight away.
+
+**Single Image.** The picture is made in Google Labs Flow, not here, so the engine writes the
+caption **and the prompt that produces the picture**. Copy the prompt, generate the image, then
+drop it onto the post. Until you do, the post is marked "Needs image" in the grid and the preview
+shows an empty frame where the picture will go.
+
+That split is deliberate. The app can render slides better than a diffusion model can, and a
+diffusion model can make a photograph the app never could.
 
 ---
 
@@ -30,7 +44,7 @@ cp .env.example .env.local          # then fill in GEMINI_API_KEY, see SETUP.md
 docker compose up -d pocketbase
 docker compose exec pocketbase /usr/local/bin/pocketbase superuser upsert you@example.com YourPassword123
 npm install
-npm run seed                        # creates collections, loads four starter templates
+npm run seed                        # creates collections, loads the five slide designs
 npm run dev                         # http://localhost:3001
 ```
 
@@ -46,18 +60,19 @@ Rendering needs a Chrome or Chromium. If you have Google Chrome installed, nothi
    remains is `README.md`, `package.json`, architecture docs and source files, merged into one
    Codebase Context String with descriptive files first so they survive the size cap.
 2. **Analysis.** `lib/gemini.ts` sends that string to `gemini-2.5-flash` with a `responseSchema`.
-   One call returns the caption, the chosen `template_key` and the slide by slide payload.
-3. **Rendering.** `lib/render.ts` pulls the raw HTML for that key out of PocketBase and merges the
-   payload in with Handlebars.
-4. **Compilation.** `lib/chromium.ts` drives headless Chromium directly: `page.pdf()` at
-   11.25in x 14.0625in for a carousel, `page.screenshot()` for an image post, plus a JPEG of
-   slide one for the history cards. All three come from one browser launch.
-5. **Persistence.** `lib/pocketbase.ts` writes the record with the binary attached, and the
-   browser is sent to the finished post.
+   One call returns the caption and then, depending on the type, either the chosen `template_key`
+   with eight role-tagged slides, or the Google Labs Flow prompt.
+3. **Rendering.** Carousels only. `lib/render.ts` pulls the raw HTML for that key out of PocketBase,
+   injects the logo and the wordmark, and merges the slide payload in with Handlebars.
+4. **Compilation.** Carousels only. `lib/chromium.ts` drives headless Chromium directly:
+   `page.pdf()` at 11.25in x 14.0625in, plus a JPEG of slide one for the history cards, both from
+   one browser launch.
+5. **Persistence.** `lib/pocketbase.ts` writes the record. A carousel arrives with its file; a
+   single image post arrives without one and gets it later through `/api/posts/[id]/image`.
 
-`lib/pipeline.ts` sequences all of it. If PocketBase is unreachable the four starter templates in
-`templates/` are used instead, and a post that cannot be saved is handed to the browser directly
-rather than lost.
+`lib/pipeline.ts` sequences all of it. If PocketBase is unreachable the five designs in
+`templates/` are used instead, and a carousel that cannot be saved is handed to the browser
+directly rather than lost.
 
 ---
 
@@ -69,11 +84,29 @@ whole system run as one Coolify application. The trade is that a Chromium has to
 the app runs, which is why the Dockerfile installs one.
 
 That Dockerfile also installs `fonts-liberation`, and that is not optional. The templates ask for
-`"Helvetica Neue", Helvetica, Arial` and for `Georgia, "Times New Roman"`. Liberation Sans and
-Liberation Serif are the metric-compatible stand-ins those resolve to on Linux. Measured on the
-light template with a dense slide: Liberation renders it 1428px tall, DejaVu — Chromium's fallback
-when Liberation is absent — renders the same slide 1648px tall. On a 1350px canvas that is the
-difference between a slide that fits and one missing its last two bullets.
+`"Helvetica Neue", Helvetica, Arial`, and Liberation Sans is the metric-compatible stand-in that
+resolves to on Linux. Measured on a dense slide: Liberation renders it 1428px tall, DejaVu —
+Chromium's fallback when Liberation is absent — renders the same slide 1648px tall. On a 1350px
+canvas that is the difference between a slide that fits and one missing its last two bullets.
+
+---
+
+## The eight-slide blueprint
+
+Every carousel is the same shape, and the model is told it slide by slide rather than asked for
+"eight slides" and left to make them all rhyme:
+
+| # | role | What goes on it |
+| --- | --- | --- |
+| 1 | `hook` | The cover that stops the scroll |
+| 2 | `problem` | Why it matters, or the common mistake |
+| 3-6 | `point` | One distinct idea, step or architecture point each |
+| 7 | `summary` | A checklist recap |
+| 8 | `cta` | Save, comment, follow |
+
+Templates branch on that role, so a cover, a checklist and a sign off look nothing like the four
+middle slides without the template needing eight hardcoded blocks. The five designs are
+`level_one_cream`, `noir`, `mist`, `sand` and `slate`. See [POCKETBASE.md](POCKETBASE.md).
 
 ---
 
@@ -102,11 +135,13 @@ app/
   posts/page.tsx            history grid
   posts/[id]/page.tsx       one post in full
   api/generate/route.ts     runs the pipeline
-  api/posts/                list, read, and file streaming
+  api/posts/                list, read, file streaming, and image upload
   api/templates/route.ts    template list for the picker
   api/health/route.ts       readiness of Gemini, Chromium and PocketBase
 components/
-  GeneratorForm.tsx         mode toggle, drop zone, text input, template picker
+  GeneratorForm.tsx         type toggle, drop zone, text input, design picker
+  LinkedInPreview.tsx       the post as LinkedIn draws it, one slide at a time
+  ImagePromptPanel.tsx      the Flow prompt, and the drop zone for the result
   PostCard.tsx              one post in the history grid
   PdfViewer.tsx             react-pdf, one framed slide per page
   CopyButton.tsx            clipboard with an insecure-context fallback
@@ -115,8 +150,9 @@ components/
   HealthLine.tsx            speaks up only when something is actually wrong
 lib/
   unzipper.ts               jszip extraction and filtering
-  gemini.ts                 system prompt and structured output schema
-  chromium.ts               PDF, PNG and thumbnail rendering, plus auto-fit
+  gemini.ts                 system prompt, blueprint, and structured output schema
+  brand.ts                  who posts, and the logo as a data URI
+  chromium.ts               PDF and thumbnail rendering, plus slide auto-fit
   pocketbase.ts             client, template reads, post saving, file records
   render.ts                 Handlebars merge
   sanitize.ts               emoji stripping

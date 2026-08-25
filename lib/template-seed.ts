@@ -9,32 +9,39 @@ import type { HtmlTemplate } from './types';
  */
 export const TEMPLATE_MANIFEST: Array<Omit<HtmlTemplate, 'raw_html'> & { file: string }> = [
   {
-    template_key: 'dark_technical',
-    template_name: 'Dark Technical Deep Dive',
+    template_key: 'level_one_cream',
+    template_name: 'Level One Cream',
     category:
-      'Engineering architecture, infrastructure, developer tooling, backend systems, and technical walkthroughs',
-    file: 'dark_technical.html',
+      'Clean, flat and editorial. The default for step by step walkthroughs, workflow breakdowns and anything instructional where the words carry the whole slide.',
+    file: 'level_one_cream.html',
   },
   {
-    template_key: 'light_business',
-    template_name: 'Light Business Case Study',
+    template_key: 'level_one_noir',
+    template_name: 'Level One Noir',
     category:
-      'Business outcomes, client case studies, process automation, consulting work, and results driven storytelling',
-    file: 'light_business.html',
+      'Near black with drifting smoke. Use for myth busting, hard truths, contrarian takes and posts meant to stop the scroll with a bold claim.',
+    file: 'level_one_noir.html',
   },
   {
-    template_key: 'gradient_product',
-    template_name: 'Gradient Product Launch',
+    template_key: 'level_one_mist',
+    template_name: 'Level One Mist',
     category:
-      'Product launches, new feature announcements, AI products, startups, and marketing forward posts',
-    file: 'gradient_product.html',
+      'White with pale smoke. Suits tool stacks, technical architecture, product teardowns and anything that benefits from a light, airy, spacious feel.',
+    file: 'level_one_mist.html',
   },
   {
-    template_key: 'single_image_bold',
-    template_name: 'Bold Single Image',
+    template_key: 'level_one_sand',
+    template_name: 'Level One Sand',
     category:
-      'Single image posts, announcements, and quote graphics that need one strong standalone frame',
-    file: 'single_image_bold.html',
+      'Warm flat beige. Best for business outcomes, before and after transformations, client results and growth stories aimed at a commercial reader.',
+    file: 'level_one_sand.html',
+  },
+  {
+    template_key: 'level_one_slate',
+    template_name: 'Level One Slate',
+    category:
+      'Heavy grey smoke with depth. Use for mistakes to avoid, risk and warning posts, and anything with a serious or cautionary tone.',
+    file: 'level_one_slate.html',
   },
 ];
 

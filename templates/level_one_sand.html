@@ -1,0 +1,302 @@
+<meta charset="utf-8" />
+<style>
+  /* Exact LinkedIn 4:5 page geometry. Chromium lays out CSS pixels at 96 DPI. */
+  @page { size: 1080px 1350px; margin: 0; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 1080px;
+    background: #e6dcc7;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-family: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
+  }
+
+  .slide {
+    position: relative;
+    width: 1080px;
+    height: 1350px;
+    page-break-after: always;
+    break-after: page;
+    overflow: hidden;
+    background: #e6dcc7;
+    color: #14120e;
+    padding: 96px 88px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+
+  /* ---- Texture -------------------------------------------------------- */
+  /* Soft smoke, drawn with an SVG turbulence filter so the template stays a
+     single self-contained file with no image to fetch. */
+  .texture {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .texture svg { width: 100%; height: 100%; display: block; }
+
+  .slide > *:not(.texture) { position: relative; z-index: 1; }
+
+  /* ---- Shared type ---------------------------------------------------- */
+  .kicker {
+    font-size: 25px;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #635b4c;
+    margin-bottom: 30px;
+  }
+
+  .heading {
+    font-size: 74px;
+    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    margin-bottom: 32px;
+  }
+
+  .body {
+    font-size: 36px;
+    line-height: 1.5;
+    color: #635b4c;
+    max-width: 860px;
+  }
+
+  .bullets {
+    list-style: none;
+    margin-top: 46px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+
+  .bullets li {
+    position: relative;
+    padding-left: 44px;
+    font-size: 32px;
+    line-height: 1.4;
+  }
+
+  .bullets li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 17px;
+    width: 20px;
+    height: 3px;
+    background: #14120e;
+  }
+
+  .spacer { flex: 1; }
+
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 2px solid rgba(20,18,14,0.18);
+    padding-top: 28px;
+    font-size: 23px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #635b4c;
+  }
+
+  /* ---- Slide 1: the hook ---------------------------------------------- */
+  .slide-hook {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 90px 76px;
+  }
+
+  .mark {
+    width: 92px;
+    height: 92px;
+    object-fit: contain;
+    margin-bottom: 26px;
+    
+  }
+
+  .wordmark {
+    font-size: 122px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    white-space: nowrap;
+    margin-bottom: 44px;
+    color: #14120e;
+  }
+
+  .cover-heading {
+    font-size: 58px;
+    line-height: 1.18;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.005em;
+    max-width: 880px;
+  }
+
+  .cover-benefit {
+    font-size: 32px;
+    line-height: 1.45;
+    color: #635b4c;
+    margin-top: 26px;
+    max-width: 760px;
+  }
+
+  .counter {
+    font-size: 34px;
+    font-weight: 700;
+    margin-top: 34px;
+  }
+
+  .cover-label {
+    font-size: 23px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: #635b4c;
+    margin-top: 12px;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 44px;
+    padding: 22px 46px;
+    border-radius: 999px;
+    background: #14120e;
+    color: #e6dcc7;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  /* Swipe chevron, drawn rather than typed so no glyph has to exist. */
+  .chev {
+    width: 13px;
+    height: 13px;
+    border-right: 3px solid #e6dcc7;
+    border-top: 3px solid #e6dcc7;
+    transform: rotate(45deg);
+  }
+
+  /* ---- Slide 7: the summary checklist --------------------------------- */
+  .checklist {
+    list-style: none;
+    margin-top: 44px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .checklist li {
+    position: relative;
+    padding: 22px 28px 22px 78px;
+    font-size: 31px;
+    line-height: 1.35;
+    border: 2px solid rgba(20,18,14,0.18);
+    border-radius: 18px;
+  }
+
+  /* A tick built from two borders, for the same reason as the chevron. */
+  .checklist li::before {
+    content: "";
+    position: absolute;
+    left: 30px;
+    top: 31px;
+    width: 11px;
+    height: 21px;
+    border-right: 4px solid #14120e;
+    border-bottom: 4px solid #14120e;
+    transform: rotate(42deg);
+  }
+
+  /* ---- Slide 8: the call to action ------------------------------------ */
+  .slide-cta {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .slide-cta .heading { font-size: 66px; text-transform: uppercase; }
+  .slide-cta .body { margin: 0 auto; }
+
+  .cta-steps {
+    list-style: none;
+    margin-top: 42px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    font-size: 31px;
+  }
+
+  .cta-steps li {
+    padding: 18px 40px;
+    border: 2px solid rgba(20,18,14,0.18);
+    border-radius: 999px;
+  }
+</style>
+
+<!-- Filter definitions, declared once and referenced by every slide. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="smoke" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.006" numOctaves="5" seed="5" result="noise" />
+      <feColorMatrix in="noise" type="matrix"
+        values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1.1 0 0 0 -0.18" result="tinted" />
+      <feGaussianBlur in="tinted" stdDeviation="26" />
+    </filter>
+  </defs>
+</svg>
+
+{{#each slides}}
+<section class="slide slide-{{role}}">
+  {{#if isHook}}
+    <img class="mark" src="{{../logoDataUri}}" alt="" />
+    <div class="wordmark">{{../wordmark}}</div>
+    <h1 class="cover-heading">{{heading}}</h1>
+    {{#if body}}<p class="cover-benefit">{{body}}</p>{{/if}}
+    <div class="counter">{{number}} / {{../totalLabel}}</div>
+    <div class="cover-label">{{../title}}</div>
+    <div class="pill">Swipe<span class="chev"></span></div>
+  {{else if isCta}}
+    <img class="mark" src="{{../logoDataUri}}" alt="" />
+    <h2 class="heading">{{heading}}</h2>
+    {{#if body}}<p class="body">{{body}}</p>{{/if}}
+    {{#if bullets.length}}
+      <ul class="cta-steps">
+        {{#each bullets}}<li>{{this}}</li>{{/each}}
+      </ul>
+    {{/if}}
+    <div class="pill">{{../wordmark}}</div>
+  {{else}}
+    {{#if kicker}}<div class="kicker">{{kicker}}</div>{{/if}}
+    <h2 class="heading">{{heading}}</h2>
+    {{#if body}}<p class="body">{{body}}</p>{{/if}}
+    {{#if bullets.length}}
+      {{#if isSummary}}
+        <ul class="checklist">
+          {{#each bullets}}<li>{{this}}</li>{{/each}}
+        </ul>
+      {{else}}
+        <ul class="bullets">
+          {{#each bullets}}<li>{{this}}</li>{{/each}}
+        </ul>
+      {{/if}}
+    {{/if}}
+    <div class="spacer"></div>
+    <div class="footer">
+      <span>{{../wordmark}}</span>
+      <span>{{number}} / {{../totalLabel}}</span>
+    </div>
+  {{/if}}
+</section>
+{{/each}}

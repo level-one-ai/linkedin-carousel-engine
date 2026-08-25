@@ -55,6 +55,14 @@ export default function PostCard({ post, index }: { post: PostSummary; index: nu
           <span className="absolute right-2 top-2 rounded-full bg-foreground/85 px-2.5 py-1 text-fluid-xs font-medium text-cream backdrop-blur">
             {isCarousel ? `${post.slide_count} slides` : 'Image'}
           </span>
+
+          {/* An image post with no picture yet is unfinished, and the grid is
+              the only place that is visible at a glance. */}
+          {!post.hasAsset ? (
+            <span className="absolute left-2 top-2 rounded-full bg-amber-100 px-2.5 py-1 text-fluid-xs font-medium text-amber-900">
+              {isCarousel ? 'No file' : 'Needs image'}
+            </span>
+          ) : null}
         </div>
 
         <h2 className="mt-3 text-fluid-base font-semibold leading-snug text-foreground">

@@ -25,8 +25,18 @@ interface TemplateSummary {
 }
 
 const MODES: Array<{ id: PostMode; label: string; icon: typeof Layers; hint: string }> = [
-  { id: 'carousel', label: 'PDF Carousel', icon: Layers, hint: 'Multi page, 1080 x 1350' },
-  { id: 'image', label: 'Single Image', icon: ImageIcon, hint: 'One PNG, 1080 x 1350' },
+  {
+    id: 'carousel',
+    label: 'Carousel',
+    icon: Layers,
+    hint: 'Eight slides, rendered here as a PDF',
+  },
+  {
+    id: 'image',
+    label: 'Single Image',
+    icon: ImageIcon,
+    hint: 'Caption plus a prompt for Google Labs Flow',
+  },
 ];
 
 /** Turns the fallback base64 into a blob URL when a post could not be saved. */
@@ -153,7 +163,7 @@ export default function GeneratorForm({ onBusyChange }: { onBusyChange?: (busy: 
         >
           <section className="card">
             <h2 className="mb-3 text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
-              Post format
+              Type
             </h2>
             <div className="grid gap-3 xs:grid-cols-2">
               {MODES.map((mode) => {
@@ -255,25 +265,34 @@ export default function GeneratorForm({ onBusyChange }: { onBusyChange?: (busy: 
               className="field-input resize-y"
             />
 
-            <label className="mt-4 block text-fluid-xs uppercase tracking-widest text-muted">
-              Slide design
-              <select
-                value={templateKey}
-                onChange={(event) => setTemplateKey(event.target.value)}
-                className="field-input mt-1.5 text-fluid-sm normal-case tracking-normal"
-              >
-                <option value="">Let the model choose</option>
-                {templates.map((template) => (
-                  <option key={template.template_key} value={template.template_key}>
-                    {template.template_name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {/* A single image post uses no slide design, so the picker would
+                be a control that changes nothing. */}
+            {postMode === 'carousel' ? (
+              <label className="mt-4 block text-fluid-xs uppercase tracking-widest text-muted">
+                Slide design
+                <select
+                  value={templateKey}
+                  onChange={(event) => setTemplateKey(event.target.value)}
+                  className="field-input mt-1.5 text-fluid-sm normal-case tracking-normal"
+                >
+                  <option value="">Let the model choose</option>
+                  {templates.map((template) => (
+                    <option key={template.template_key} value={template.template_key}>
+                      {template.template_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <p className="mt-4 rounded-2xl border border-line bg-white/50 px-4 py-3 text-fluid-xs text-muted">
+                You will get the caption and an image prompt to paste into Google Labs Flow. Bring
+                the picture back and upload it onto the post.
+              </p>
+            )}
 
             <button type="button" onClick={submit} className="btn-primary mt-5 w-full">
               <Sparkles className="h-4 w-4" aria-hidden />
-              Generate post
+              {postMode === 'carousel' ? 'Generate carousel' : 'Generate text and prompt'}
             </button>
 
             <HealthLine />

@@ -189,6 +189,7 @@ export function toPostSummary(record: RecordModel): PostSummary {
     mime_type: String(record.mime_type ?? 'application/pdf'),
     file_name: String(record.file_name ?? 'linkedin-post.pdf'),
     hashtags: parseJson<string[]>(record.hashtags, []),
+    image_prompt: normalizeNewlines(record.image_prompt),
     hasAsset: Boolean(record.asset),
     hasThumbnail: Boolean(record.thumbnail),
     created: String(record.created ?? ''),
@@ -207,8 +208,14 @@ export interface NewPost {
   mime_type: string;
   file_name: string;
   hashtags: string[];
-  asset: Buffer;
-  thumbnail: Buffer;
+  /** Single image posts: the Google Labs Flow prompt. Empty for carousels. */
+  image_prompt: string;
+  /**
+   * The rendered carousel. Absent on a single image post, which has no file
+   * until a picture is uploaded onto it.
+   */
+  asset?: Buffer;
+  thumbnail?: Buffer;
 }
 
 /**
@@ -234,23 +241,29 @@ export async function savePost(entry: NewPost): Promise<string> {
   form.append('mime_type', entry.mime_type);
   form.append('file_name', entry.file_name);
   form.append('hashtags', JSON.stringify(entry.hashtags));
-  form.append(
-    'asset',
-    new Blob([new Uint8Array(entry.asset)], { type: entry.mime_type }),
-    entry.file_name,
-  );
-  form.append(
-    'thumbnail',
-    new Blob([new Uint8Array(entry.thumbnail)], { type: 'image/jpeg' }),
-    'thumbnail.jpg',
-  );
+  form.append('image_prompt', entry.image_prompt);
+
+  if (entry.asset) {
+    form.append(
+      'asset',
+      new Blob([new Uint8Array(entry.asset)], { type: entry.mime_type }),
+      entry.file_name,
+    );
+  }
+  if (entry.thumbnail) {
+    form.append(
+      'thumbnail',
+      new Blob([new Uint8Array(entry.thumbnail)], { type: 'image/jpeg' }),
+      'thumbnail.jpg',
+    );
+  }
 
   const record = await client.collection(COLLECTIONS.posts).create(form);
 
   // PocketBase drops an unknown field on create WITHOUT complaining, so a
   // collection missing `asset` would save the caption and silently lose the
   // carousel. Saying so here is what turns that into something fixable.
-  if (!record.asset) {
+  if (entry.asset && !record.asset) {
     console.warn(
       `[posts] The post saved but its file did not: the ${COLLECTIONS.posts} collection ` +
         'has no `asset` field, so PocketBase discarded it. Run "npm run seed" to add it.',
@@ -258,6 +271,46 @@ export async function savePost(entry: NewPost): Promise<string> {
   }
 
   return record.id;
+}
+
+/**
+ * Attaches a picture to a single image post that was waiting for one.
+ *
+ * Uploading again replaces both files rather than adding to them, because both
+ * fields are maxSelect 1 — so a second attempt after a bad generation is just
+ * another upload, not a cleanup job.
+ */
+export async function attachImage(args: {
+  id: string;
+  image: Buffer;
+  thumbnail: Buffer;
+  mimeType: string;
+  fileName: string;
+}): Promise<void> {
+  const client = await requireAdmin();
+
+  const form = new FormData();
+  form.append(
+    'asset',
+    new Blob([new Uint8Array(args.image)], { type: args.mimeType }),
+    args.fileName,
+  );
+  form.append(
+    'thumbnail',
+    new Blob([new Uint8Array(args.thumbnail)], { type: 'image/jpeg' }),
+    'thumbnail.jpg',
+  );
+  form.append('mime_type', args.mimeType);
+  form.append('file_name', args.fileName);
+
+  const saved = await client.collection(COLLECTIONS.posts).update(args.id, form);
+
+  if (!saved.asset) {
+    throw new Error(
+      `The image did not save: the ${COLLECTIONS.posts} collection has no \`asset\` field. ` +
+        'Run "npm run seed" to add it.',
+    );
+  }
 }
 
 export async function listPosts(limit = 200): Promise<PostSummary[]> {

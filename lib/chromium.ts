@@ -287,6 +287,56 @@ export async function renderSlides(html: string, postMode: PostMode): Promise<Re
   }
 }
 
+/** Longest edge of a stored card thumbnail. */
+const THUMBNAIL_WIDTH_PX = 432;
+
+/**
+ * Shrinks an uploaded picture down to a card thumbnail.
+ *
+ * Carousel thumbnails come free, as a screenshot of slide one taken during the
+ * render that was happening anyway. An uploaded image has no such render to
+ * borrow from, and a 4MB PNG out of an image generator cannot go straight into
+ * the 2MB thumbnail field, so this is the one case that pays for its own
+ * browser launch.
+ */
+export async function scaleThumbnail(image: Buffer, mimeType: string): Promise<Buffer> {
+  const browser = await launch();
+
+  try {
+    const page = await browser.newPage({
+      viewport: { width: THUMBNAIL_WIDTH_PX, height: THUMBNAIL_WIDTH_PX },
+      deviceScaleFactor: 1,
+    });
+
+    await page.setContent(
+      `<style>html,body{margin:0;padding:0;background:#faf9f6}` +
+        `img{display:block;width:${THUMBNAIL_WIDTH_PX}px;height:auto}</style>` +
+        `<img id="t" src="data:${mimeType};base64,${image.toString('base64')}">`,
+      { waitUntil: 'load' },
+    );
+
+    // A data URI image can still be decoding when "load" fires.
+    await page.waitForFunction(() => {
+      const img = document.getElementById('t') as HTMLImageElement | null;
+      return Boolean(img?.complete && img.naturalWidth > 0);
+    }, undefined, { timeout: 20_000 });
+
+    const box = await page.locator('#t').boundingBox();
+    const height = Math.max(1, Math.round(box?.height ?? THUMBNAIL_WIDTH_PX));
+    await page.setViewportSize({ width: THUMBNAIL_WIDTH_PX, height });
+
+    return Buffer.from(
+      await page.screenshot({
+        type: 'jpeg',
+        quality: THUMBNAIL_QUALITY,
+        clip: { x: 0, y: 0, width: THUMBNAIL_WIDTH_PX, height },
+      }),
+    );
+  } finally {
+    await browser.close().catch(() => {});
+  }
+}
+
 /** Readiness probe for the dashboard: is there a browser to render with. */
 export function rendererAvailable(): boolean {
   return Boolean(executablePath());

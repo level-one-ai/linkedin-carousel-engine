@@ -22,7 +22,7 @@ carousel look.
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `template_key` | text | yes | The short id the AI returns, for example `dark_technical`. Lowercase, no spaces. A unique index is set on this field. |
+| `template_key` | text | yes | The short id the AI returns, for example `level_one_noir`. Lowercase, no spaces. A unique index is set on this field. |
 | `template_name` | text | yes | The friendly name shown in the dashboard dropdown. |
 | `category` | text | yes | A plain sentence describing what this design is good for. **The AI reads this field to decide which template to pick**, so write it as a description, not a one word label. |
 | `raw_html` | editor | yes | The full HTML of the template, including its `<style>` block and its `@page` rule. |
@@ -31,19 +31,61 @@ carousel look.
 read". The server reads templates on every generation and this keeps it working even before admin
 credentials are set. Create, update and delete stay locked to the superuser.
 
+### The eight-slide blueprint
+
+Every carousel follows the same shape, and the model is told it slide by slide.
+Each slide carries a `role` that the template styles on:
+
+| # | role | What goes on it |
+| --- | --- | --- |
+| 1 | `hook` | The cover. Logo, LEVEL ONE wordmark, the headline that stops the scroll, a one line benefit, the counter and a swipe pill. |
+| 2 | `problem` | Why this matters, or the mistake people make. |
+| 3-6 | `point` | One distinct idea, step or architecture point each. |
+| 7 | `summary` | A checklist recap of slides 3 to 6. |
+| 8 | `cta` | Save, comment, follow. No new information. |
+
+A template does not need eight hardcoded blocks. It loops `{{#each slides}}` and
+branches on `{{#if isHook}}`, `{{#if isSummary}}`, `{{#if isCta}}` and so on, so
+the cover, the checklist and the sign off each look different from the four
+middle slides.
+
+### The five designs
+
+| Key | Look | Reaches for |
+| --- | --- | --- |
+| `level_one_cream` | Flat cream, no texture | Step by step walkthroughs |
+| `level_one_noir` | Near black with smoke | Myth busting, hard truths |
+| `level_one_mist` | White with pale smoke | Tool stacks, architecture |
+| `level_one_sand` | Flat warm beige | Business outcomes, results |
+| `level_one_slate` | Grey with heavy smoke | Mistakes, risk, warnings |
+
+The smoke is an inline SVG turbulence filter, so a template is still one
+self-contained file with nothing to fetch. It is rasterised at a quarter of the
+page size and scaled back up: Chromium bakes a filter result into the PDF as a
+bitmap, and at full resolution eight of those came to 22MB, which does not fit
+the 10MB `asset` field. Smoke has no hard edges, so the smaller raster is
+indistinguishable once scaled.
+
+The logo is injected by the renderer as `{{logoDataUri}}` rather than pasted
+into each file. Templates are handed to Chromium through `setContent`, which
+gives the page no origin, so `/logo-mark.png` would resolve to nothing and the
+mark would silently vanish from every carousel.
+
 ### Adding your own design
 
 1. Write your HTML with `@page { size: 1080px 1350px; margin: 0; }` and a `.slide` block that is
    exactly `1080px` by `1350px` with `page-break-after: always`.
 2. Loop your slides with `{{#each slides}}`. Inside the loop you have `heading`, `body`, `bullets`,
-   `kicker`, `number`, `isFirst` and `isLast`. Reach outside the loop with `{{../title}}`,
-   `{{../subtitle}}` and `{{../totalLabel}}`.
+   `kicker`, `role`, `number`, `isFirst`, `isLast` and one boolean per role: `isHook`, `isProblem`,
+   `isPoint`, `isSummary`, `isCta`. Reach outside the loop with `{{../title}}`, `{{../subtitle}}`,
+   `{{../totalLabel}}`, `{{../wordmark}}` and `{{../logoDataUri}}`.
 3. Add a row in the admin UI, or drop the file in `templates/`, add it to `TEMPLATES` in
    `scripts/seed-pocketbase.mjs` and `TEMPLATE_MANIFEST` in `lib/template-seed.ts`, then rerun
    `npm run seed`.
 
-Templates whose key starts with `single_image` are offered only in Single Image mode. Every other
-template is offered only in PDF Carousel mode.
+Single image posts use no template at all. They are stored with
+`chosen_template_key` set to `user_image`, because the field is required and
+there is no design behind them: the picture comes from Google Labs Flow.
 
 You do not have to be precious about fitting the text exactly. Before anything is captured, the
 renderer shrinks any slide whose content overruns the canvas until it fits, so a slightly long
@@ -69,7 +111,8 @@ a post from six weeks ago openable rather than gone.
 | `mime_type` | text | no | `application/pdf` or `image/png`. |
 | `file_name` | text | no | The name downloads are saved under. |
 | `hashtags` | json | no | Rendered as pills on the detail screen. |
-| `asset` | file, protected | no | **The carousel PDF or the PNG.** maxSelect 1, max 10MB. |
+| `image_prompt` | text (max 4000) | no | Single image posts: the Google Labs Flow prompt. Kept on the record so it can be re-run months later without regenerating the post. |
+| `asset` | file, protected | no | **The carousel PDF, or the picture you upload onto a single image post.** maxSelect 1, max 10MB. Empty on an image post until you add the picture. |
 | `thumbnail` | file, protected | no | Slide one as a JPEG, max 2MB, for the history grid. |
 | `created` / `updated` | autodate | — | **Must exist.** The grid sorts on `created`, and sorting on a field PocketBase does not have is a 400 on the listing, not an empty page. |
 
@@ -77,11 +120,16 @@ a post from six weeks ago openable rather than gone.
 `app/api/posts/[id]/file/route.ts` mints one per request with `pb.files.getToken()`, so the bytes
 are served from your own origin and no PocketBase session is ever exposed to the browser.
 
-**Why the thumbnail is JPEG:** slide one is a full 1080 x 1350 frame. The gradient template renders
-to a 630KB PNG, because a smooth gradient is the worst case for lossless compression. The same
-frame as quality-72 JPEG is around 60KB, and the grid loads one per card.
+**Why the thumbnail is JPEG:** slide one is a full 1080 x 1350 frame, and as a PNG a smoke design
+runs past 600KB because soft gradients are the worst case for lossless compression. The same frame
+at quality 72 is around 60KB, and the grid loads one per card. An uploaded picture is scaled down
+the same way before it is stored.
 
 **API rules:** none are opened. The server reads and writes these while signed in as the superuser.
+
+**A single image post starts with no `asset`.** That is normal, not a failure: the caption and the
+prompt are saved first, and the picture arrives later through the upload panel on the post. The
+grid marks those posts "Needs image" until it does.
 
 **If `asset` is missing from your collection,** PocketBase discards the file on create *without
 complaining* — the caption saves and the carousel silently vanishes. The app logs a warning when it

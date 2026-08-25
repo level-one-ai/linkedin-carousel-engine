@@ -37,33 +37,54 @@ function loadDotEnv(path) {
 
 const TEMPLATES = [
   {
-    template_key: 'dark_technical',
-    template_name: 'Dark Technical Deep Dive',
+    template_key: 'level_one_cream',
+    template_name: 'Level One Cream',
     category:
-      'Engineering architecture, infrastructure, developer tooling, backend systems, and technical walkthroughs',
-    file: 'dark_technical.html',
+      'Clean, flat and editorial. The default for step by step walkthroughs, workflow breakdowns and anything instructional where the words carry the whole slide.',
+    file: 'level_one_cream.html',
   },
   {
-    template_key: 'light_business',
-    template_name: 'Light Business Case Study',
+    template_key: 'level_one_noir',
+    template_name: 'Level One Noir',
     category:
-      'Business outcomes, client case studies, process automation, consulting work, and results driven storytelling',
-    file: 'light_business.html',
+      'Near black with drifting smoke. Use for myth busting, hard truths, contrarian takes and posts meant to stop the scroll with a bold claim.',
+    file: 'level_one_noir.html',
   },
   {
-    template_key: 'gradient_product',
-    template_name: 'Gradient Product Launch',
+    template_key: 'level_one_mist',
+    template_name: 'Level One Mist',
     category:
-      'Product launches, new feature announcements, AI products, startups, and marketing forward posts',
-    file: 'gradient_product.html',
+      'White with pale smoke. Suits tool stacks, technical architecture, product teardowns and anything that benefits from a light, airy, spacious feel.',
+    file: 'level_one_mist.html',
   },
   {
-    template_key: 'single_image_bold',
-    template_name: 'Bold Single Image',
+    template_key: 'level_one_sand',
+    template_name: 'Level One Sand',
     category:
-      'Single image posts, announcements, and quote graphics that need one strong standalone frame',
-    file: 'single_image_bold.html',
+      'Warm flat beige. Best for business outcomes, before and after transformations, client results and growth stories aimed at a commercial reader.',
+    file: 'level_one_sand.html',
   },
+  {
+    template_key: 'level_one_slate',
+    template_name: 'Level One Slate',
+    category:
+      'Heavy grey smoke with depth. Use for mistakes to avoid, risk and warning posts, and anything with a serious or cautionary tone.',
+    file: 'level_one_slate.html',
+  },
+];
+
+/**
+ * Designs from before the Level One set, removed on the next seed.
+ *
+ * Left in place they would keep appearing in the picker and, worse, keep being
+ * offered to the model as a valid choice - so a carousel could still come out
+ * in a layout that carries none of the branding.
+ */
+const RETIRED_TEMPLATE_KEYS = [
+  'dark_technical',
+  'light_business',
+  'gradient_product',
+  'single_image_bold',
 ];
 
 const COLLECTIONS = [
@@ -102,6 +123,9 @@ const COLLECTIONS = [
       { name: 'mime_type', type: 'text', required: false },
       { name: 'file_name', type: 'text', required: false },
       { name: 'hashtags', type: 'json', maxSize: 200000 },
+      // Single image posts: the prompt to paste into Google Labs Flow. Kept on
+      // the record so it can be re-run months later without regenerating.
+      { name: 'image_prompt', type: 'text', required: false, max: 4000 },
       // The carousel PDF or the single PNG. This is what makes a post
       // reopenable rather than a one-time download.
       {
@@ -266,6 +290,20 @@ async function createCollection(definition) {
   }
 }
 
+async function retireOldTemplates() {
+  for (const key of RETIRED_TEMPLATE_KEYS) {
+    const filter = encodeURIComponent(`template_key="${key}"`);
+    const found = await api(`/api/collections/html_templates/records?filter=${filter}&perPage=1`);
+
+    if (found.items && found.items.length > 0) {
+      await api(`/api/collections/html_templates/records/${found.items[0].id}`, {
+        method: 'DELETE',
+      });
+      console.log(`Removed retired template ${key}.`);
+    }
+  }
+}
+
 async function upsertTemplates() {
   for (const template of TEMPLATES) {
     const raw_html = readFileSync(join(ROOT, 'templates', template.file), 'utf8');
@@ -301,6 +339,7 @@ async function main() {
   console.log(`Seeding PocketBase at ${PB_URL}`);
   await authenticate();
   await ensureCollections();
+  await retireOldTemplates();
   await upsertTemplates();
   console.log('Done. PocketBase is ready.');
 }

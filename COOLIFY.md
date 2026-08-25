@@ -174,6 +174,39 @@ Do not trust a green tick. Open the app and make a real post.
 
 ---
 
+## Bad gateway
+
+A 502 or "Bad Gateway" means Coolify's proxy reached your server but got nothing
+back from the container. Work through these in order.
+
+**1. Is Ports Exposes set to 3001?** This is the usual cause. The Dockerfile
+starts the app on port 3001, not the 3000 most Node apps use. If Coolify is set
+to 3000 it forwards traffic to a port nothing is listening on, and you get a
+bad gateway with a perfectly healthy container. Application settings, **Ports
+Exposes**, `3001`.
+
+**2. Is the Build Pack set to Dockerfile?** On Nixpacks the image has no
+Chromium and no start command that matches this project.
+
+**3. Is the container actually running?** Open the application in Coolify and
+look at **Logs**. A container that started and exited leaves the proxy with
+nothing to talk to. You are looking for a line like
+`Network: http://0.0.0.0:3001`, which means the server came up.
+
+**4. Did the deploy actually finish?** A build still in progress serves a bad
+gateway until it swaps over. The first build takes five to ten minutes because
+it downloads Chromium.
+
+**5. Is the domain pointed at the right application?** If `media.levelone.digital`
+is set on a different resource, or set on both this app and another one, the
+proxy has no clean route. One domain, one application.
+
+Once the page loads, check **/api/health** in the browser. It returns JSON
+saying whether Gemini, the renderer and PocketBase are each reachable, which
+tells you what to fix next without generating anything.
+
+---
+
 ## Things that go wrong later
 
 **I changed a setting and nothing happened.**

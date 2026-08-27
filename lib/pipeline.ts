@@ -5,10 +5,12 @@ import {
   getTemplateByKey,
   listTemplates,
   logError,
+  replaceTemplateHtml,
   savePost,
 } from './pocketbase';
 import { renderTemplate } from './render';
 import { stripEmojis } from './sanitize';
+import { templateProblem } from './template-html';
 import { loadSeedTemplates } from './template-seed';
 import type { GenerateResult, HtmlTemplate, InputType, PostMode } from './types';
 import { extractCodebaseContext } from './unzipper';
@@ -21,6 +23,78 @@ function slugify(value: string): string {
       .replace(/^-+|-+$/g, '')
       .slice(0, 60) || 'linkedin-post'
   );
+}
+
+/**
+ * The PocketBase limit on the `asset` field. A PDF past this is rejected on
+ * save, so it is worth catching here where the message can say which design
+ * produced it.
+ */
+const MAX_ASSET_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Makes sure the design about to be used can actually render, and leaves the
+ * database better than it found it.
+ *
+ * Two failures, with different answers. A design pasted into the PocketBase
+ * admin UI's rich editor comes back escaped into visible text, or wrapped in a
+ * paragraph — `repairTemplateHtml` undoes both on the way out of the database,
+ * and the repaired copy is written back so the next read does not have to.
+ * A design the editor has *stripped*, usually of its <style> block, cannot be
+ * recovered from what is left; there the bundled file of the same key takes
+ * over and is written back in its place.
+ *
+ * Rendering either without this produces the failure this exists to prevent: a
+ * page of HTML source code, saved as a one slide carousel.
+ */
+async function healTemplate(template: HtmlTemplate, warnings: string[]): Promise<HtmlTemplate> {
+  const problem = template.problem ?? templateProblem(template.raw_html);
+
+  // Best effort throughout. A read-only database must not stop a post that is
+  // otherwise about to render correctly.
+  async function store(html: string) {
+    if (!template.id) return;
+    try {
+      await replaceTemplateHtml(template.id, html);
+    } catch (error) {
+      await logError({
+        stage: 'templates',
+        message: `Could not repair template ${template.template_key}`,
+        details: String(error),
+      });
+    }
+  }
+
+  if (!problem) {
+    if (template.repaired) {
+      // Un-escaping worked, so the design itself is intact and there is no
+      // reason to replace it with a bundled one — including when it is a
+      // design of your own that has no bundled copy.
+      warnings.push(
+        `"${template.template_name}" was stored as plain text rather than HTML. It has been ` +
+          'unscrambled and saved back properly, so this will not happen again.',
+      );
+      await store(template.raw_html);
+    }
+    return template;
+  }
+
+  const bundled = loadSeedTemplates().find((t) => t.template_key === template.template_key);
+  if (!bundled) {
+    warnings.push(
+      `The design "${template.template_name}" cannot be used because ${problem}, and there is ` +
+        'no built in copy of it to fall back on.',
+    );
+    return template;
+  }
+
+  warnings.push(
+    `The stored copy of "${template.template_name}" was damaged (${problem}), so the built in ` +
+      'copy was used instead and saved back in its place.',
+  );
+  await store(bundled.raw_html);
+
+  return { ...template, raw_html: bundled.raw_html, problem: null, repaired: true };
 }
 
 /**
@@ -47,14 +121,15 @@ async function resolveTemplates(warnings: string[]): Promise<HtmlTemplate[]> {
 async function resolveChosenTemplate(
   templateKey: string,
   available: HtmlTemplate[],
+  warnings: string[],
 ): Promise<HtmlTemplate> {
   const fromList = available.find((template) => template.template_key === templateKey);
-  if (fromList) return fromList;
+  if (fromList) return healTemplate(fromList, warnings);
 
   const fromDb = await getTemplateByKey(templateKey);
-  if (fromDb) return fromDb;
+  if (fromDb) return healTemplate(fromDb, warnings);
 
-  return available[0];
+  return healTemplate(available[0], warnings);
 }
 
 export interface GenerateInput {
@@ -133,7 +208,7 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
   }
 
   const templateKey = input.forcedTemplateKey?.trim() || payload.template_key;
-  const template = await resolveChosenTemplate(templateKey, selectable);
+  const template = await resolveChosenTemplate(templateKey, selectable, warnings);
   if (template.template_key !== templateKey) {
     warnings.push(`Template "${templateKey}" was not found, so "${template.template_name}" was used.`);
   }
@@ -143,6 +218,28 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
 
   // Phase 4: render through headless Chromium.
   const { asset, thumbnail, overflowingSlides } = await renderSlides(html, input.postMode);
+
+  // The count comes from the finished PDF, not from what the model intended.
+  // A design that renders as one page of source code gets this far looking
+  // fine and then saves a post that says "Carousel, 1 slides" — unusable, and
+  // worse than an error because it looks like a result.
+  if (asset.slideCount !== payload.slides.length) {
+    throw new Error(
+      `The design "${template.template_name}" produced ${asset.slideCount} ` +
+        `${asset.slideCount === 1 ? 'page' : 'pages'} instead of ${payload.slides.length}, so the ` +
+        'carousel was not saved. The stored copy of that design is probably damaged: rerun ' +
+        '"npm run seed" to restore it.',
+    );
+  }
+
+  if (asset.buffer.length > MAX_ASSET_BYTES) {
+    const megabytes = (asset.buffer.length / 1024 / 1024).toFixed(1);
+    throw new Error(
+      `The carousel came to ${megabytes}MB, which is past the 10MB limit on the file field, so ` +
+        `it was not saved. The design "${template.template_name}" is producing files too large ` +
+        'to store. Generate again with a different design.',
+    );
+  }
 
   if (overflowingSlides.length > 0) {
     // The slide was shrunk as far as it can legibly go and the copy still does

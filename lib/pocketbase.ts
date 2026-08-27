@@ -2,6 +2,7 @@ import PocketBase from 'pocketbase';
 import type { RecordModel } from 'pocketbase';
 
 import { config } from './config';
+import { repairTemplateHtml, templateProblem } from './template-html';
 import type { HtmlTemplate, InputType, PostMode, PostSummary } from './types';
 
 export const COLLECTIONS = {
@@ -112,13 +113,31 @@ export async function requireAdmin(): Promise<PocketBase> {
 // ---------------------------------------------------------------------------
 
 function toTemplate(record: RecordModel): HtmlTemplate {
+  // Every template read in the app comes through here, which is why the repair
+  // lives here rather than at each call site.
+  const { html, repaired } = repairTemplateHtml(String(record.raw_html ?? ''));
+
   return {
     id: record.id,
     template_key: String(record.template_key),
     template_name: String(record.template_name),
     category: String(record.category),
-    raw_html: String(record.raw_html),
+    raw_html: html,
+    repaired,
+    problem: templateProblem(html),
   };
+}
+
+/**
+ * Overwrites a stored design with a known good copy.
+ *
+ * Only ever called with a template the app has already found unusable, and
+ * only when it has a bundled file of the same key to put there instead. A
+ * design of your own that renders is never touched.
+ */
+export async function replaceTemplateHtml(id: string, rawHtml: string): Promise<void> {
+  const client = await requireAdmin();
+  await client.collection(COLLECTIONS.templates).update(id, { raw_html: rawHtml });
 }
 
 export async function listTemplates(): Promise<HtmlTemplate[]> {

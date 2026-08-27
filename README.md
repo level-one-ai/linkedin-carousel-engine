@@ -112,6 +112,14 @@ middle slides without the template needing eight hardcoded blocks. The five desi
 
 ## Two safeguards worth knowing about
 
+**A carousel that is not a carousel does not get saved.** The page count is read off the finished
+PDF, not taken from what the model intended. A slide design stored damaged — escaped into plain
+text by the PocketBase admin editor, say — renders as one page of its own source code, and saving
+that produces a post that says "Carousel, 1 slides" and looks like a result rather than a failure.
+`lib/template-html.ts` unscrambles what it can on the way out of the database and saves the repair
+back; `lib/pipeline.ts` swaps in the bundled design when it cannot, and refuses outright when the
+PDF comes back with the wrong number of pages or too large for the 10MB file field.
+
 **Nothing is silently clipped.** Slide copy is written against a word budget, not a pixel budget,
 so a long heading plus four bullets can overflow 1350px. The slide has `overflow: hidden`, which
 means an overflow does not look broken — it looks like the last bullet was never written. Before
@@ -156,6 +164,7 @@ lib/
   pocketbase.ts             client, template reads, post saving, file records
   render.ts                 Handlebars merge
   sanitize.ts               emoji stripping
+  template-html.ts          un-escapes a mangled design, and rejects an unusable one
   pipeline.ts               end to end orchestration
   config.ts                 every environment variable, read in one place
 templates/                  the four starter slide designs

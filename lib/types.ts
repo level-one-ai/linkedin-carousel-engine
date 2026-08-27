@@ -41,6 +41,10 @@ export interface HtmlTemplate {
   template_name: string;
   category: string;
   raw_html: string;
+  /** True when the stored copy had to be un-escaped or unwrapped on the way in. */
+  repaired?: boolean;
+  /** Why this design cannot render, in a sentence. Null when it is fine. */
+  problem?: string | null;
 }
 
 /**

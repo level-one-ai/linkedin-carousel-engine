@@ -12,6 +12,13 @@ interface Health {
   templateCount: number;
 }
 
+interface TemplateHealth {
+  template_name: string;
+  ok: boolean;
+  problem: string | null;
+  repaired: boolean;
+}
+
 /**
  * A quiet pre-flight check under the generate button.
  *
@@ -22,15 +29,24 @@ interface Health {
  */
 export default function HealthLine() {
   const [health, setHealth] = useState<Health | null>(null);
+  const [templates, setTemplates] = useState<TemplateHealth[]>([]);
   const [checking, setChecking] = useState(false);
 
   async function check() {
     setChecking(true);
     try {
-      const response = await fetch('/api/health');
-      setHealth(await response.json());
+      // Both, because a design stored as escaped text leaves every other check
+      // green and still renders one page of source code.
+      const [healthResponse, templateResponse] = await Promise.all([
+        fetch('/api/health'),
+        fetch('/api/templates'),
+      ]);
+      setHealth(await healthResponse.json());
+      const body = await templateResponse.json();
+      setTemplates(Array.isArray(body.templates) ? body.templates : []);
     } catch {
       setHealth({ gemini: false, renderer: false, pocketbase: false, templateCount: 0 });
+      setTemplates([]);
     } finally {
       setChecking(false);
     }
@@ -55,6 +71,21 @@ export default function HealthLine() {
     problems.push('PocketBase is unreachable, so posts cannot be saved to your history.');
   } else if (health.templateCount === 0) {
     problems.push('PocketBase has no slide designs yet. Run "npm run seed".');
+  }
+
+  const broken = templates.filter((template) => !template.ok);
+  if (broken.length > 0) {
+    problems.push(
+      `${broken.length === 1 ? 'This slide design is' : 'These slide designs are'} stored damaged ` +
+        `and will be replaced with the built in copy: ${broken
+          .map((template) => template.template_name)
+          .join(', ')}.`,
+    );
+  } else if (templates.some((template) => template.repaired)) {
+    problems.push(
+      'Some slide designs are stored as plain text rather than HTML. They are being unscrambled ' +
+        'on the way in, which works, but "npm run seed" would store them properly.',
+    );
   }
 
   if (problems.length === 0) return null;

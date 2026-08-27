@@ -59,12 +59,18 @@ middle slides.
 | `level_one_sand` | Flat warm beige | Business outcomes, results |
 | `level_one_slate` | Grey with heavy smoke | Mistakes, risk, warnings |
 
-The smoke is an inline SVG turbulence filter, so a template is still one
-self-contained file with nothing to fetch. It is rasterised at a quarter of the
-page size and scaled back up: Chromium bakes a filter result into the PDF as a
-bitmap, and at full resolution eight of those came to 22MB, which does not fit
-the 10MB `asset` field. Smoke has no hard edges, so the smaller raster is
-indistinguishable once scaled.
+The smoke is a JPEG baked into the template as a data URI, so a design is still
+one self-contained file with nothing to fetch. It started as an inline SVG
+turbulence filter, which does not survive being printed: Chromium cannot express
+a filter in a PDF, so it rasterises one at the size the element is *painted* —
+1080 x 1350, once per slide. Measured on eight slides that came to 9.8MB for
+noir, 23.3MB for mist and 9.5MB for slate, against a 10MB `asset` field. Mist
+could never have been saved.
+
+`scripts/bake-smoke.mjs` runs each filter once, composited onto that design's own
+background, and writes the result in. About 30KB each, and the PDFs land under
+100KB. Compositing is what makes it small, because an alpha channel is most of a
+PNG of soft grey noise. Rerun it only if the smoke itself is being redesigned.
 
 The logo is injected by the renderer as `{{logoDataUri}}` rather than pasted
 into each file. Templates are handed to Chromium through `setContent`, which
@@ -187,5 +193,14 @@ If you would rather not run the seed script:
    leaving the write rules locked.
 6. Repeat for `generated_posts` and `error_logs`, leaving all their API rules locked. On the two
    file fields, tick **Protected**. Add the `created` and `updated` autodate fields explicitly.
-7. Paste your template HTML into `html_templates` rows by hand, or run `npm run seed` just to load
-   the templates into the collections you already made.
+7. Run `npm run seed` to load the templates. **Do not paste them into the admin UI by hand.**
+   `raw_html` is an `editor` field, so PocketBase puts a rich text editor in front of it, and a
+   rich text editor assumes you are writing prose. A pasted template comes back either escaped
+   into visible text or stripped of its `<style>` block. Neither looks like a failure, and both
+   render as a page of HTML source code saved as a one slide carousel.
+
+   The app defends itself against this: a design stored as escaped text is unscrambled on the way
+   out of the database and saved back properly, and one damaged past repair is replaced with the
+   built in copy of the same key. Both say so in the warnings under the post, and
+   **/api/templates** reports `ok` and `problem` per design so you can check without generating
+   anything. That is a safety net, not a licence — seed them.

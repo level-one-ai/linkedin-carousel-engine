@@ -101,85 +101,108 @@
     color: #6b6357;
   }
 
-  /* ---- Slide 1: the hook ---------------------------------------------- */
+  /* ---- Slide 1: the hook ----------------------------------------------
+     Airy: the mark alone at the top, and the headline weighted to the lower
+     third above a full width rule. */
   .slide-hook {
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 90px 76px;
+    align-items: stretch;
+    justify-content: flex-start;
+    text-align: left;
+    padding: 84px 88px 88px;
+  }
+
+  .cover-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
   }
 
   .mark {
-    width: 92px;
-    height: 92px;
+    width: 210px;
+    height: 210px;
     object-fit: contain;
-    margin-bottom: 26px;
     
   }
 
-  .wordmark {
-    font-size: 122px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    line-height: 1;
-    white-space: nowrap;
-    margin-bottom: 44px;
+  .cover-index {
+    text-align: right;
+    color: #6b6357;
+  }
+
+  .cover-index .counter {
+    font-size: 40px;
+    font-weight: 700;
     color: #14120e;
   }
 
+  .cover-label {
+    font-size: 21px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #6b6357;
+    margin-top: 10px;
+    max-width: 420px;
+    line-height: 1.5;
+  }
+
+  .cover-body {
+    margin-top: auto;
+    border-top: 3px solid rgba(20,18,14,0.14);
+    padding-top: 46px;
+  }
+
+  .wordmark {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: 0.34em;
+    color: #6b6357;
+    margin-bottom: 30px;
+  }
+
   .cover-heading {
-    font-size: 58px;
-    line-height: 1.18;
+    font-size: 88px;
+    line-height: 1.06;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.005em;
-    max-width: 880px;
+    letter-spacing: -0.01em;
   }
 
   .cover-benefit {
-    font-size: 32px;
+    font-family: Georgia, "Times New Roman", "Liberation Serif", serif;
+    font-size: 30px;
     line-height: 1.45;
     color: #6b6357;
-    margin-top: 26px;
-    max-width: 760px;
-  }
-
-  .counter {
-    font-size: 34px;
-    font-weight: 700;
     margin-top: 34px;
+    max-width: 800px;
   }
 
-  .cover-label {
-    font-size: 23px;
-    letter-spacing: 0.24em;
-    text-transform: uppercase;
-    color: #6b6357;
-    margin-top: 12px;
+  .cover-foot {
+    margin-top: 48px;
   }
 
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 16px;
-    margin-top: 44px;
-    padding: 22px 46px;
-    border-radius: 999px;
-    background: #14120e;
-    color: #ffffff;
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-  }
-
-  /* Swipe chevron, drawn rather than typed so no glyph has to exist. */
+  /* The swipe chevron is drawn from two borders rather than typed, so no font
+     has to own the glyph. */
   .chev {
     width: 13px;
     height: 13px;
     border-right: 3px solid #ffffff;
     border-top: 3px solid #ffffff;
     transform: rotate(45deg);
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+    padding: 26px 54px;
+    border-radius: 999px;
+    background: #14120e;
+    color: #ffffff;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
   }
 
   /* ---- Slide 7: the summary checklist --------------------------------- */
@@ -243,13 +266,19 @@
 {{#each slides}}
 <section class="slide slide-{{role}}">
   {{#if isHook}}
-    <img class="mark" src="{{../logoDataUri}}" alt="" />
-    <div class="wordmark">{{../wordmark}}</div>
-    <h1 class="cover-heading">{{heading}}</h1>
-    {{#if body}}<p class="cover-benefit">{{body}}</p>{{/if}}
-    <div class="counter">{{number}} / {{../totalLabel}}</div>
-    <div class="cover-label">{{../title}}</div>
-    <div class="pill">Swipe<span class="chev"></span></div>
+    <div class="cover-top">
+      <img class="mark" src="{{../logoDataUri}}" alt="" />
+      <div class="cover-index">
+        <div class="counter">{{number}} / {{../totalLabel}}</div>
+        <div class="cover-label">{{../title}}</div>
+      </div>
+    </div>
+    <div class="cover-body">
+      <div class="wordmark">{{../wordmark}}</div>
+      <h1 class="cover-heading">{{heading}}</h1>
+      {{#if body}}<p class="cover-benefit">{{body}}</p>{{/if}}
+      <div class="cover-foot"><div class="pill">Swipe<span class="chev"></span></div></div>
+    </div>
   {{else if isCta}}
     <img class="mark" src="{{../logoDataUri}}" alt="" />
     <h2 class="heading">{{heading}}</h2>

@@ -31,6 +31,16 @@
       "template_name": "Level One Slate",
       "file": "level_one_slate.html",
       "category": "Heavy grey smoke with depth. Use for mistakes to avoid, risk and warning posts, and anything with a serious or cautionary tone."
+    },
+    {
+      "template_key": "level_one_portrait",
+      "template_name": "Level One Portrait",
+      "file": "level_one_portrait.html",
+      "category": "Black fading to warm grey, with a photograph of the author filling the first and last slides. Use for personal takes, opinion pieces, lessons learned and anything told in the first person, where the face is the reason someone stops scrolling.",
+      "requires": [
+        "portrait"
+      ]
     }
-  ]
+  ],
+  "_requires_note": "requires names images from templates/assets that a design cannot render without, by filename without the extension. A design listing one that is not there is left out of the picker rather than rendered with an empty frame."
 }

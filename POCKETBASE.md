@@ -66,6 +66,13 @@ middle slides.
 | `level_one_mist` | White with pale smoke | Tool stacks, architecture |
 | `level_one_sand` | Flat warm beige | Business outcomes, results |
 | `level_one_slate` | Grey with heavy smoke | Mistakes, risk, warnings |
+| `level_one_portrait` | Black fading to warm grey, your photograph on the first and last slide | Personal takes, opinion, lessons learned |
+
+Each cover is laid out differently, so the six are told apart by arrangement and not only by colour.
+
+`level_one_portrait` needs an image. It declares `"requires": ["portrait"]` in
+`templates/index.json`, and is left out of the picker until `templates/assets/portrait.*` exists —
+see `templates/assets/README.md`. `/api/templates` lists it under `waiting` with the reason.
 
 The smoke is a JPEG baked into the template as a data URI, so a design is still
 one self-contained file with nothing to fetch. It started as an inline SVG

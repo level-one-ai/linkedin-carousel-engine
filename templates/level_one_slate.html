@@ -101,85 +101,102 @@
     color: #c2beb6;
   }
 
-  /* ---- Slide 1: the hook ---------------------------------------------- */
+  /* ---- Slide 1: the hook ----------------------------------------------
+     A thin rule across the top carries the wordmark and the counter; the mark
+     and the headline are centred beneath it. */
   .slide-hook {
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     text-align: center;
-    padding: 90px 76px;
+    padding: 76px 84px 84px;
   }
 
-  .mark {
-    width: 92px;
-    height: 92px;
-    object-fit: contain;
-    margin-bottom: 26px;
-    filter: invert(1);
+  .cover-bar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid rgba(247,245,240,0.22);
+    padding-bottom: 26px;
+    margin-bottom: 88px;
   }
 
   .wordmark {
-    font-size: 122px;
+    font-size: 30px;
     font-weight: 800;
-    letter-spacing: 0.08em;
-    line-height: 1;
-    white-space: nowrap;
-    margin-bottom: 44px;
+    letter-spacing: 0.34em;
     color: #f7f5f0;
   }
 
+  .cover-bar .counter {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: #c2beb6;
+  }
+
+  .mark {
+    width: 256px;
+    height: 256px;
+    object-fit: contain;
+    margin-bottom: 66px;
+    filter: invert(1);
+  }
+
   .cover-heading {
-    font-size: 58px;
-    line-height: 1.18;
+    font-size: 76px;
+    line-height: 1.1;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.005em;
-    max-width: 880px;
+    max-width: 840px;
   }
 
   .cover-benefit {
-    font-size: 32px;
+    font-family: Georgia, "Times New Roman", "Liberation Serif", serif;
+    font-size: 30px;
     line-height: 1.45;
     color: #c2beb6;
-    margin-top: 26px;
+    margin-top: 36px;
     max-width: 760px;
   }
 
-  .counter {
-    font-size: 34px;
-    font-weight: 700;
-    margin-top: 34px;
+  .cover-foot {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
   }
 
   .cover-label {
-    font-size: 23px;
+    font-size: 21px;
     letter-spacing: 0.24em;
     text-transform: uppercase;
     color: #c2beb6;
-    margin-top: 12px;
   }
 
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 16px;
-    margin-top: 44px;
-    padding: 22px 46px;
-    border-radius: 999px;
-    background: #f7f5f0;
-    color: #2b2a28;
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-  }
-
-  /* Swipe chevron, drawn rather than typed so no glyph has to exist. */
+  /* The swipe chevron is drawn from two borders rather than typed, so no font
+     has to own the glyph. */
   .chev {
     width: 13px;
     height: 13px;
     border-right: 3px solid #2b2a28;
     border-top: 3px solid #2b2a28;
     transform: rotate(45deg);
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+    padding: 26px 54px;
+    border-radius: 999px;
+    background: #f7f5f0;
+    color: #2b2a28;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
   }
 
   /* ---- Slide 7: the summary checklist --------------------------------- */
@@ -243,13 +260,17 @@
 {{#each slides}}
 <section class="slide slide-{{role}}">
   {{#if isHook}}
+    <div class="cover-bar">
+      <div class="wordmark">{{../wordmark}}</div>
+      <div class="counter">{{number}} / {{../totalLabel}}</div>
+    </div>
     <img class="mark" src="{{../logoDataUri}}" alt="" />
-    <div class="wordmark">{{../wordmark}}</div>
     <h1 class="cover-heading">{{heading}}</h1>
     {{#if body}}<p class="cover-benefit">{{body}}</p>{{/if}}
-    <div class="counter">{{number}} / {{../totalLabel}}</div>
-    <div class="cover-label">{{../title}}</div>
-    <div class="pill">Swipe<span class="chev"></span></div>
+    <div class="cover-foot">
+      <div class="cover-label">{{../title}}</div>
+      <div class="pill">Swipe<span class="chev"></span></div>
+    </div>
   {{else if isCta}}
     <img class="mark" src="{{../logoDataUri}}" alt="" />
     <h2 class="heading">{{heading}}</h2>

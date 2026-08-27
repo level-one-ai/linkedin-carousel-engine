@@ -1,0 +1,355 @@
+<meta charset="utf-8" />
+<style>
+  /* Exact LinkedIn 4:5 page geometry. Chromium lays out CSS pixels at 96 DPI. */
+  @page { size: 1080px 1350px; margin: 0; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 1080px;
+    background: #0a0a09;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-family: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
+  }
+
+  /* Near black at the top lifting to a lighter grey toward the bottom, which
+     is the background the reference carousel uses. A gradient rather than an
+     image, so it costs nothing in the PDF and cannot go missing. Drop a
+     background.* into templates/assets to override it in .slide-photo. */
+  .slide {
+    position: relative;
+    width: 1080px;
+    height: 1350px;
+    page-break-after: always;
+    break-after: page;
+    overflow: hidden;
+    background: linear-gradient(178deg, #0a0a09 0%, #131211 46%, #26241f 78%, #3a372f 100%);
+    color: #f7f5f0;
+    padding: 76px 84px 84px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+
+  /* No blanket `.slide > * { position: relative }` here, unlike the smoke
+     designs. There is no texture layer to lift content above, and such a rule
+     outranks .portrait and .scrim on specificity — which silently turns the
+     photo slides into a stacked image with the scrim pushed off the page. */
+
+  /* ---- The bar every slide carries ------------------------------------
+     Author on the left, company on the right, as the reference does. */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    font-size: 25px;
+    letter-spacing: 0.04em;
+    color: #cfcabf;
+    padding-bottom: 26px;
+    border-bottom: 1px solid rgba(247,245,240,0.16);
+    margin-bottom: 78px;
+  }
+
+  .topbar .company { color: #a8a294; }
+
+  /* ---- Shared type ----------------------------------------------------- */
+  .kicker {
+    font-size: 24px;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #a8a294;
+    margin-bottom: 28px;
+  }
+
+  /* The accent is weight, not colour: the reference picks a word out in gold,
+     and this palette is off-white on black and nothing else. */
+  .heading {
+    font-size: 82px;
+    line-height: 1.06;
+    font-weight: 300;
+    letter-spacing: -0.015em;
+    margin-bottom: 42px;
+  }
+
+  .heading strong { font-weight: 800; }
+
+  .body {
+    font-size: 34px;
+    line-height: 1.5;
+    color: #cfcabf;
+    max-width: 880px;
+  }
+
+  .bullets {
+    list-style: none;
+    margin-top: 44px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .bullets li {
+    position: relative;
+    padding-left: 46px;
+    font-size: 31px;
+    line-height: 1.4;
+  }
+
+  .bullets li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 17px;
+    width: 22px;
+    height: 2px;
+    background: #f7f5f0;
+  }
+
+  .spacer { flex: 1; }
+
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 23px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #a8a294;
+  }
+
+  /* The forward arrow, drawn rather than typed so no font has to own it. */
+  .arrow {
+    width: 96px;
+    height: 2px;
+    background: #f7f5f0;
+    position: relative;
+  }
+
+  .arrow::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: -7px;
+    width: 16px;
+    height: 16px;
+    border-right: 2px solid #f7f5f0;
+    border-top: 2px solid #f7f5f0;
+    transform: rotate(45deg);
+  }
+
+  /* ---- Slides 1 and 8: the photograph ----------------------------------
+     Same picture both times: in colour on the cover, and the black and white
+     copy on the sign off. Both are prepared at slide width before they get
+     here. */
+  .slide-photo {
+    padding: 0;
+    justify-content: flex-end;
+  }
+
+  .slide-photo > .portrait {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 22%;
+  }
+
+  /* Lets the type sit on the picture without a box around it. */
+  .slide-photo > .scrim {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 74%;
+    background: linear-gradient(
+      180deg,
+      rgba(10,10,9,0) 0%,
+      rgba(10,10,9,0.62) 34%,
+      rgba(10,10,9,0.94) 68%,
+      rgba(10,10,9,0.99) 100%
+    );
+  }
+
+  .slide-photo > .photo-topbar {
+    position: absolute;
+    top: 76px;
+    left: 84px;
+    right: 84px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 25px;
+    letter-spacing: 0.04em;
+    color: #f0ece2;
+    text-shadow: 0 2px 18px rgba(0,0,0,0.65);
+  }
+
+  .slide-photo > .photo-text {
+    position: relative;
+    z-index: 1;
+    padding: 0 84px 88px;
+    width: 100%;
+  }
+
+  .photo-mark {
+    width: 108px;
+    height: 108px;
+    object-fit: contain;
+    filter: invert(1);
+    margin-bottom: 34px;
+  }
+
+  .photo-heading {
+    font-size: 88px;
+    line-height: 1.04;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.015em;
+  }
+
+  .photo-body {
+    font-size: 33px;
+    line-height: 1.45;
+    color: #ddd8cc;
+    margin-top: 30px;
+    max-width: 840px;
+  }
+
+  .photo-steps {
+    list-style: none;
+    margin-top: 34px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    font-size: 30px;
+    color: #ddd8cc;
+  }
+
+  .photo-steps li { padding-left: 40px; position: relative; }
+
+  .photo-steps li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 18px;
+    width: 20px;
+    height: 2px;
+    background: #f7f5f0;
+  }
+
+  .photo-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 44px;
+    font-size: 24px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #cfcabf;
+  }
+
+  /* ---- Slide 7: the summary checklist ---------------------------------- */
+  .checklist {
+    list-style: none;
+    margin-top: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .checklist li {
+    position: relative;
+    padding: 22px 28px 22px 76px;
+    font-size: 30px;
+    line-height: 1.35;
+    border: 1px solid rgba(247,245,240,0.22);
+    border-radius: 16px;
+  }
+
+  .checklist li::before {
+    content: "";
+    position: absolute;
+    left: 30px;
+    top: 30px;
+    width: 11px;
+    height: 21px;
+    border-right: 3px solid #f7f5f0;
+    border-bottom: 3px solid #f7f5f0;
+    transform: rotate(42deg);
+  }
+</style>
+
+{{#each slides}}
+<section class="slide slide-{{role}}{{#if isHook}} slide-photo{{/if}}{{#if isCta}} slide-photo{{/if}}">
+  {{#if isHook}}
+    <img class="portrait" src="{{../assets.portrait}}" alt="" />
+    <div class="scrim"></div>
+    <div class="photo-topbar">
+      <span>{{../author}}</span>
+      <span>{{../brandName}}</span>
+    </div>
+    <div class="photo-text">
+      <img class="photo-mark" src="{{../logoDataUri}}" alt="" />
+      <h1 class="photo-heading">{{heading}}</h1>
+      {{#if body}}<p class="photo-body">{{body}}</p>{{/if}}
+      <div class="photo-foot">
+        <span>{{../title}}</span>
+        <span class="arrow"></span>
+      </div>
+    </div>
+  {{else if isCta}}
+    <!-- The black and white copy is made once by lib/template-assets.ts, not
+         with a CSS filter here: Chromium cannot put a filter in a PDF, so it
+         rasterises the filtered image at full page size. On a detailed
+         photograph that alone took the carousel from under 1MB to 6.3MB. -->
+    <img class="portrait" src="{{../assets.portraitMono}}" alt="" />
+    <div class="scrim"></div>
+    <div class="photo-topbar">
+      <span>{{../author}}</span>
+      <span>{{../brandName}}</span>
+    </div>
+    <div class="photo-text">
+      <h2 class="photo-heading">{{heading}}</h2>
+      {{#if body}}<p class="photo-body">{{body}}</p>{{/if}}
+      {{#if bullets.length}}
+        <ul class="photo-steps">
+          {{#each bullets}}<li>{{this}}</li>{{/each}}
+        </ul>
+      {{/if}}
+      <div class="photo-foot">
+        <span>{{../wordmark}}</span>
+        <span>{{number}} / {{../totalLabel}}</span>
+      </div>
+    </div>
+  {{else}}
+    <div class="topbar">
+      <span>{{../author}}</span>
+      <span class="company">{{../brandName}}</span>
+    </div>
+    {{#if kicker}}<div class="kicker">{{kicker}}</div>{{/if}}
+    <h2 class="heading">{{heading}}</h2>
+    {{#if body}}<p class="body">{{body}}</p>{{/if}}
+    {{#if bullets.length}}
+      {{#if isSummary}}
+        <ul class="checklist">
+          {{#each bullets}}<li>{{this}}</li>{{/each}}
+        </ul>
+      {{else}}
+        <ul class="bullets">
+          {{#each bullets}}<li>{{this}}</li>{{/each}}
+        </ul>
+      {{/if}}
+    {{/if}}
+    <div class="spacer"></div>
+    <div class="footer">
+      <span>{{number}} / {{../totalLabel}}</span>
+      <span class="arrow"></span>
+    </div>
+  {{/if}}
+</section>
+{{/each}}

@@ -107,85 +107,89 @@
     color: #6b6357;
   }
 
-  /* ---- Slide 1: the hook ---------------------------------------------- */
+  /* ---- Slide 1: the hook ----------------------------------------------
+     Centred stack, built around the mark: it opens the page rather than
+     labelling it. */
   .slide-hook {
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 90px 76px;
+    padding: 80px 76px;
   }
 
   .mark {
-    width: 92px;
-    height: 92px;
+    width: 300px;
+    height: 300px;
     object-fit: contain;
-    margin-bottom: 26px;
+    margin-bottom: 18px;
     
   }
 
   .wordmark {
-    font-size: 122px;
+    font-size: 116px;
     font-weight: 800;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.14em;
     line-height: 1;
     white-space: nowrap;
-    margin-bottom: 44px;
+    margin-bottom: 38px;
     color: #14120e;
   }
 
   .cover-heading {
-    font-size: 58px;
-    line-height: 1.18;
+    font-size: 62px;
+    line-height: 1.14;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.005em;
     max-width: 880px;
   }
 
   .cover-benefit {
-    font-size: 32px;
-    line-height: 1.45;
+    font-family: Georgia, "Times New Roman", "Liberation Serif", serif;
+    font-size: 30px;
+    line-height: 1.4;
+    letter-spacing: 0.03em;
     color: #6b6357;
-    margin-top: 26px;
-    max-width: 760px;
+    margin-top: 54px;
+    max-width: 800px;
   }
 
-  .counter {
-    font-size: 34px;
-    font-weight: 700;
-    margin-top: 34px;
+  .cover-foot {
+    margin-top: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
   }
 
   .cover-label {
-    font-size: 23px;
+    font-size: 22px;
     letter-spacing: 0.24em;
     text-transform: uppercase;
     color: #6b6357;
-    margin-top: 12px;
   }
 
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 16px;
-    margin-top: 44px;
-    padding: 22px 46px;
-    border-radius: 999px;
-    background: #14120e;
-    color: #f4efe4;
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-  }
-
-  /* Swipe chevron, drawn rather than typed so no glyph has to exist. */
+  /* The swipe chevron is drawn from two borders rather than typed, so no font
+     has to own the glyph. */
   .chev {
     width: 13px;
     height: 13px;
     border-right: 3px solid #f4efe4;
     border-top: 3px solid #f4efe4;
     transform: rotate(45deg);
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+    padding: 26px 54px;
+    border-radius: 999px;
+    background: #14120e;
+    color: #f4efe4;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
   }
 
   /* ---- Slide 7: the summary checklist --------------------------------- */
@@ -264,9 +268,10 @@
     <div class="wordmark">{{../wordmark}}</div>
     <h1 class="cover-heading">{{heading}}</h1>
     {{#if body}}<p class="cover-benefit">{{body}}</p>{{/if}}
-    <div class="counter">{{number}} / {{../totalLabel}}</div>
-    <div class="cover-label">{{../title}}</div>
-    <div class="pill">Swipe<span class="chev"></span></div>
+    <div class="cover-foot">
+      <div class="cover-label">{{../title}}</div>
+      <div class="pill">Swipe<span class="chev"></span></div>
+    </div>
   {{else if isCta}}
     <img class="mark" src="{{../logoDataUri}}" alt="" />
     <h2 class="heading">{{heading}}</h2>

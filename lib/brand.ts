@@ -14,6 +14,11 @@ export const BRAND = {
   tagline: 'AI systems and automation for growing businesses',
   /** The large letterspaced wordmark on the carousel cover slide. */
   wordmark: 'LEVEL ONE',
+  /**
+   * The person posting, shown in the top corner of the portrait design the way
+   * the reference carousel carries its author's name.
+   */
+  author: 'Dean',
 } as const;
 
 let cachedLogo: string | null = null;

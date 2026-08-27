@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { missingAssets } from './template-assets';
 import { templateProblem } from './template-html';
 import type { HtmlTemplate } from './types';
 
@@ -25,6 +26,12 @@ interface IndexEntry {
   template_name: string;
   category: string;
   file: string;
+  /**
+   * Images from templates/assets this design cannot render without, by name
+   * without the extension. A design listing one that is not there is left out
+   * rather than rendered with an empty frame where the picture goes.
+   */
+  requires?: string[];
 }
 
 const FALLBACK_CATEGORY =
@@ -69,6 +76,28 @@ function nameFromKey(key: string): string {
  * A file that cannot render is left out rather than offered. Serving one would
  * reproduce the failure this whole arrangement exists to prevent.
  */
+/**
+ * Designs the folder holds but cannot offer yet, and why.
+ *
+ * Kept separate from loadSeedTemplates so that a design waiting on a
+ * photograph is explainable — absent from the picker, but not a mystery.
+ */
+export function unavailableTemplates(): Array<{ template_name: string; reason: string }> {
+  const directory = templatesDirectory();
+  const out: Array<{ template_name: string; reason: string }> = [];
+
+  for (const entry of readIndex(directory)) {
+    const missing = missingAssets(entry.requires);
+    if (missing.length === 0) continue;
+    out.push({
+      template_name: entry.template_name,
+      reason: `waiting for ${missing.join(', ')} in templates/assets`,
+    });
+  }
+
+  return out;
+}
+
 export function loadSeedTemplates(): HtmlTemplate[] {
   const directory = templatesDirectory();
   const indexed = readIndex(directory);
@@ -110,6 +139,14 @@ export function loadSeedTemplates(): HtmlTemplate[] {
     const problem = templateProblem(raw_html);
     if (problem) {
       console.warn(`[templates] Skipping ${entry.file}: ${problem}`);
+      continue;
+    }
+
+    const missing = missingAssets(entry.requires);
+    if (missing.length > 0) {
+      console.warn(
+        `[templates] Skipping ${entry.file}: it needs ${missing.join(', ')} in templates/assets.`,
+      );
       continue;
     }
 

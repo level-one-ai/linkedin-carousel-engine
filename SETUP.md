@@ -317,6 +317,11 @@ running but still unreachable, check that `POCKETBASE_URL` matches your setup fr
 You skipped Step 9, or it failed. Run `npm run seed` again and read the message it prints. This does
 not stop carousels being made: the designs come from the `templates/` folder either way.
 
+**The Portrait design is not in the list.**
+It needs your photograph. Put a file called `portrait.jpg` in the `templates/assets/` folder in the
+repository, commit it, and redeploy. Until then the design hides itself rather than offering an
+empty frame. Open `/api/templates` and it will be listed under `waiting`, with the file it wants.
+
 **I want to know whether my latest change is actually live.**
 Open `/api/health` on the running app. `buildTime` is stamped when the app is built, so if it does
 not move after a deploy, that deploy did not take. The same page reports how many designs came from

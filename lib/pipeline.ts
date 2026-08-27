@@ -10,6 +10,7 @@ import {
 } from './pocketbase';
 import { renderTemplate } from './render';
 import { stripEmojis } from './sanitize';
+import { prepareTemplateAssets } from './template-assets';
 import { templateProblem } from './template-html';
 import { loadSeedTemplates } from './template-seed';
 import type { GenerateResult, HtmlTemplate, InputType, PostMode } from './types';
@@ -234,7 +235,11 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
   }
 
   // Phase 3: merge the payload into the raw HTML.
-  const html = renderTemplate(template, { ...payload, template_key: template.template_key });
+  const html = renderTemplate(
+    template,
+    { ...payload, template_key: template.template_key },
+    await prepareTemplateAssets(),
+  );
 
   // Phase 4: render through headless Chromium.
   const { asset, thumbnail, overflowingSlides } = await renderSlides(html, input.postMode);
@@ -258,6 +263,25 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
       `The carousel came to ${megabytes}MB, which is past the 10MB limit on the file field, so ` +
         `it was not saved. The design "${template.template_name}" is producing files too large ` +
         'to store. Generate again with a different design.',
+    );
+  }
+
+  // A slide the model left thin. Not a failure — it still renders — but it is
+  // the difference between a carousel and a list of titles, and silently
+  // publishing one is how it goes unnoticed.
+  const thin = payload.slides
+    .map((slide, index) => ({ slide, number: index + 1 }))
+    .filter(
+      ({ slide }) =>
+        slide.role !== 'hook' &&
+        ((slide.bullets ?? []).length === 0 || (slide.body ?? '').trim().split(/\s+/).length < 15),
+    )
+    .map(({ number }) => number);
+
+  if (thin.length > 0) {
+    warnings.push(
+      `Slide ${thin.join(', ')} came back with very little on it. The carousel is fine, but ` +
+        'generating again usually produces a fuller version.',
     );
   }
 

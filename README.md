@@ -107,8 +107,26 @@ Every carousel is the same shape, and the model is told it slide by slide rather
 | 8 | `cta` | Save, comment, follow |
 
 Templates branch on that role, so a cover, a checklist and a sign off look nothing like the four
-middle slides without the template needing eight hardcoded blocks. The five designs are
-`level_one_cream`, `noir`, `mist`, `sand` and `slate`. See [POCKETBASE.md](POCKETBASE.md).
+middle slides without the template needing eight hardcoded blocks. Every slide from 2 to 8 carries
+two sentences of body copy **and** three bullets: the schema requires them and the blueprint says so
+per role, because a heading with one line under it is a title, not a slide.
+
+Six designs: `level_one_cream`, `noir`, `mist`, `sand`, `slate` and `portrait`. Each lays its cover
+out differently — the mark centred and large, a lockup top left, a headline on a rule, the mark bled
+off the right edge, a top bar — so the designs are told apart at a glance rather than by colour
+alone. See [POCKETBASE.md](POCKETBASE.md).
+
+### The portrait design
+
+`level_one_portrait` is built around a photograph of the author: in colour filling the first slide,
+in black and white filling the last, over a near-black background that lifts to warm grey toward the
+bottom. Drop a `portrait.jpg` into [`templates/assets/`](templates/assets/README.md) and it appears;
+until you do it is not offered at all, and `/api/templates` says what it is waiting for.
+
+The picture is redrawn at slide width before it is used, and the black and white copy is made once
+rather than with a CSS filter in the template. That is not fussiness: Chromium cannot put a filter
+in a PDF, so it rasterises the filtered image at full page resolution, and a detailed 961KB
+photograph took the carousel from under 1MB to 6.3MB against a 10MB field.
 
 ---
 
@@ -167,9 +185,11 @@ lib/
   render.ts                 Handlebars merge
   sanitize.ts               emoji stripping
   template-html.ts          un-escapes a mangled design, and rejects an unusable one
+  template-assets.ts        images from templates/assets, as data URIs and in black and white
   pipeline.ts               end to end orchestration
   config.ts                 every environment variable, read in one place
 templates/                  the slide designs themselves, and index.json describing them
+templates/assets/           images a design uses, e.g. the portrait photograph
 scripts/seed-pocketbase.mjs collection creation, migration and template seeding
 ```
 

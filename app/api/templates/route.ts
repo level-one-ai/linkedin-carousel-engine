@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { listTemplates } from '@/lib/pocketbase';
 import { templateProblem } from '@/lib/template-html';
-import { loadSeedTemplates } from '@/lib/template-seed';
+import { loadSeedTemplates, unavailableTemplates } from '@/lib/template-seed';
 import type { HtmlTemplate } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -41,6 +41,9 @@ export async function GET() {
   }
 
   return NextResponse.json({
+    // Designs in the folder that cannot be offered yet, so one waiting on a
+    // photograph reads as pending rather than missing.
+    waiting: unavailableTemplates(),
     templates: [
       ...bundled.map((template) => describe(template, 'folder')),
       ...extra.map((template) => describe(template, 'pocketbase')),

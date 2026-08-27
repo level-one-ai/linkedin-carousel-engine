@@ -29,21 +29,33 @@ CRITICAL FORMATTING RULES:
  * are all the same shape.
  */
 const CAROUSEL_BLUEPRINT = `
-Produce EXACTLY 8 slides, in this order, each with its "role" field set:
+Produce EXACTLY 8 slides, in this order, each with its "role" field set.
 
-1. role "hook" - The headline that stops the scroll. A bold claim or a clear
-   benefit. The body is one short line promising what the reader gets. No bullets.
-2. role "problem" - Why this matters, or the common mistake people make. Bullets
-   may name the symptoms.
-3. role "point" - One distinct idea, step or piece of system architecture.
+EVERY SLIDE FROM 2 TO 8 MUST CARRY REAL CONTENT. A heading and a single line is
+not a slide - it is a title. Each of those slides needs BOTH:
+  - "body": two full sentences that say something, 25 to 45 words in total. Not
+    a restatement of the heading in other words. Explain, give the reason, name
+    the mechanism, or say what it means for the reader.
+  - "bullets": exactly three supporting points, 5 to 11 words each. Concrete.
+    A number, a name, a specific consequence. Never three ways of saying the
+    same thing.
+
+1. role "hook" - The cover, and the exception to the rule above. The headline
+   that stops the scroll: a bold claim or a clear benefit. The body is ONE short
+   line promising what the reader gets. NO bullets on this slide.
+2. role "problem" - Why this matters, or the mistake people make. The body
+   explains what it costs them. The bullets name three symptoms they will
+   recognise in their own work.
+3. role "point" - One distinct idea, step or piece of system architecture. The
+   body explains how it works. The bullets give the specifics.
 4. role "point" - The next distinct idea. Never repeat slide 3.
 5. role "point" - The next distinct idea.
 6. role "point" - The final distinct idea.
-7. role "summary" - A recap. The bullets are a checklist of the key points from
-   slides 3 to 6, one line each, and they must read as a list a person could
-   act on.
-8. role "cta" - Ask for the save, the comment and the follow. Three short
-   bullets, one per action. No new information here.
+7. role "summary" - A recap. The body says what the reader now knows. The
+   bullets are a checklist drawn from slides 3 to 6, one line each, and they
+   must read as a list a person could act on.
+8. role "cta" - Ask for the save, the comment and the follow. The body is the
+   reason to do it. Three bullets, one per action. No new information.
 `;
 
 /**
@@ -125,15 +137,20 @@ const RESPONSE_SCHEMA = {
           },
           body: {
             type: Type.STRING,
-            description: 'One or two plain sentences supporting the heading. No emojis.',
+            description:
+              'Two full sentences of real content, 25 to 45 words, that explain the heading ' +
+              'rather than restate it. The exception is the hook slide, where this is one ' +
+              'short promise line. No emojis.',
           },
           bullets: {
             type: Type.ARRAY,
-            description: 'Zero to four short supporting points. Each under eleven words.',
+            description:
+              'Exactly three concrete supporting points, 5 to 11 words each, on every slide ' +
+              'except the hook, which has none. Specifics, not three phrasings of one idea.',
             items: { type: Type.STRING },
           },
         },
-        required: ['role', 'heading', 'body'],
+        required: ['role', 'heading', 'body', 'bullets'],
       },
     },
   },
@@ -191,8 +208,10 @@ function buildUserPrompt(args: {
           '',
           CAROUSEL_BLUEPRINT,
           '',
-          'Every slide renders on a fixed 1080 by 1350 pixel canvas, so keep headings short',
-          'and bodies tight. Return an empty string for image_prompt.',
+          'Every slide renders on a fixed 1080 by 1350 pixel canvas. Keep headings short, but',
+          'do NOT thin out the bodies or drop the bullets to save room: the renderer shrinks a',
+          'slide that overruns, and a slide with nothing on it cannot be fixed that way.',
+          'Return an empty string for image_prompt.',
         ].join('\n'),
     '',
     'Never invent features the source material does not support.',

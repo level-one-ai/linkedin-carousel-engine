@@ -101,85 +101,98 @@
     color: #a09c94;
   }
 
-  /* ---- Slide 1: the hook ---------------------------------------------- */
+  /* ---- Slide 1: the hook ----------------------------------------------
+     Left aligned. A horizontal lockup at the top, then the headline takes
+     everything that is left. */
   .slide-hook {
+    align-items: flex-start;
+    justify-content: flex-start;
+    text-align: left;
+    padding: 92px 88px 80px;
+  }
+
+  .lockup {
+    display: flex;
     align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 90px 76px;
+    gap: 30px;
+    margin-bottom: 96px;
   }
 
   .mark {
-    width: 92px;
-    height: 92px;
+    width: 128px;
+    height: 128px;
     object-fit: contain;
-    margin-bottom: 26px;
     filter: invert(1);
   }
 
   .wordmark {
-    font-size: 122px;
+    font-size: 78px;
     font-weight: 800;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     line-height: 1;
     white-space: nowrap;
-    margin-bottom: 44px;
     color: #f7f5f0;
   }
 
   .cover-heading {
-    font-size: 58px;
-    line-height: 1.18;
+    font-size: 104px;
+    line-height: 1.02;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.005em;
-    max-width: 880px;
+    letter-spacing: -0.01em;
   }
 
   .cover-benefit {
-    font-size: 32px;
-    line-height: 1.45;
+    font-family: Georgia, "Times New Roman", "Liberation Serif", serif;
+    font-size: 31px;
+    line-height: 1.4;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
     color: #a09c94;
-    margin-top: 26px;
-    max-width: 760px;
+    margin-top: 56px;
+    max-width: 860px;
   }
 
-  .counter {
-    font-size: 34px;
-    font-weight: 700;
-    margin-top: 34px;
+  .cover-foot {
+    margin-top: auto;
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
   }
 
   .cover-label {
-    font-size: 23px;
+    font-size: 22px;
     letter-spacing: 0.24em;
     text-transform: uppercase;
     color: #a09c94;
-    margin-top: 12px;
+    max-width: 480px;
+    line-height: 1.5;
   }
 
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 16px;
-    margin-top: 44px;
-    padding: 22px 46px;
-    border-radius: 999px;
-    background: #f7f5f0;
-    color: #0d0d0c;
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-  }
-
-  /* Swipe chevron, drawn rather than typed so no glyph has to exist. */
+  /* The swipe chevron is drawn from two borders rather than typed, so no font
+     has to own the glyph. */
   .chev {
     width: 13px;
     height: 13px;
     border-right: 3px solid #0d0d0c;
     border-top: 3px solid #0d0d0c;
     transform: rotate(45deg);
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+    padding: 26px 54px;
+    border-radius: 999px;
+    background: #f7f5f0;
+    color: #0d0d0c;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
   }
 
   /* ---- Slide 7: the summary checklist --------------------------------- */
@@ -243,13 +256,16 @@
 {{#each slides}}
 <section class="slide slide-{{role}}">
   {{#if isHook}}
-    <img class="mark" src="{{../logoDataUri}}" alt="" />
-    <div class="wordmark">{{../wordmark}}</div>
+    <div class="lockup">
+      <img class="mark" src="{{../logoDataUri}}" alt="" />
+      <div class="wordmark">{{../wordmark}}</div>
+    </div>
     <h1 class="cover-heading">{{heading}}</h1>
     {{#if body}}<p class="cover-benefit">{{body}}</p>{{/if}}
-    <div class="counter">{{number}} / {{../totalLabel}}</div>
-    <div class="cover-label">{{../title}}</div>
-    <div class="pill">Swipe<span class="chev"></span></div>
+    <div class="cover-foot">
+      <div class="cover-label">{{../title}}</div>
+      <div class="pill">Swipe<span class="chev"></span></div>
+    </div>
   {{else if isCta}}
     <img class="mark" src="{{../logoDataUri}}" alt="" />
     <h2 class="heading">{{heading}}</h2>

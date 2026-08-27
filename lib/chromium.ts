@@ -309,26 +309,36 @@ export async function renderSlides(html: string, postMode: PostMode): Promise<Re
 const THUMBNAIL_WIDTH_PX = 432;
 
 /**
- * Shrinks an uploaded picture down to a card thumbnail.
+ * Redraws an image at a given width, optionally in black and white.
  *
- * Carousel thumbnails come free, as a screenshot of slide one taken during the
- * render that was happening anyway. An uploaded image has no such render to
- * borrow from, and a 4MB PNG out of an image generator cannot go straight into
- * the 2MB thumbnail field, so this is the one case that pays for its own
- * browser launch.
+ * Two callers, one reason: a picture that arrives at whatever size it happens
+ * to be has to be brought down to the size it is actually shown at before it
+ * goes anywhere near a size limit.
+ *
+ * The greyscale option exists because doing it with a CSS filter in the slide
+ * template is expensive in the wrong place: Chromium cannot express a filter in
+ * a PDF, so it rasterises the filtered image at full page resolution and embeds
+ * that — a 961KB photograph turned an 8 slide carousel into 6.3MB, against a
+ * 10MB field. Converting once here and embedding an ordinary JPEG costs a few
+ * hundred KB instead. Same lesson as the smoke textures.
  */
-export async function scaleThumbnail(image: Buffer, mimeType: string): Promise<Buffer> {
+async function redrawImage(
+  image: Buffer,
+  mimeType: string,
+  options: { width: number; quality: number; grayscale?: boolean },
+): Promise<Buffer> {
   const browser = await launch();
 
   try {
     const page = await browser.newPage({
-      viewport: { width: THUMBNAIL_WIDTH_PX, height: THUMBNAIL_WIDTH_PX },
+      viewport: { width: options.width, height: options.width },
       deviceScaleFactor: 1,
     });
 
     await page.setContent(
       `<style>html,body{margin:0;padding:0;background:#faf9f6}` +
-        `img{display:block;width:${THUMBNAIL_WIDTH_PX}px;height:auto}</style>` +
+        `img{display:block;width:${options.width}px;height:auto` +
+        `${options.grayscale ? ';filter:grayscale(1) contrast(1.06)' : ''}}</style>` +
         `<img id="t" src="data:${mimeType};base64,${image.toString('base64')}">`,
       { waitUntil: 'load' },
     );
@@ -340,19 +350,55 @@ export async function scaleThumbnail(image: Buffer, mimeType: string): Promise<B
     }, undefined, { timeout: 20_000 });
 
     const box = await page.locator('#t').boundingBox();
-    const height = Math.max(1, Math.round(box?.height ?? THUMBNAIL_WIDTH_PX));
-    await page.setViewportSize({ width: THUMBNAIL_WIDTH_PX, height });
+    const height = Math.max(1, Math.round(box?.height ?? options.width));
+    await page.setViewportSize({ width: options.width, height });
 
     return Buffer.from(
       await page.screenshot({
         type: 'jpeg',
-        quality: THUMBNAIL_QUALITY,
-        clip: { x: 0, y: 0, width: THUMBNAIL_WIDTH_PX, height },
+        quality: options.quality,
+        clip: { x: 0, y: 0, width: options.width, height },
       }),
     );
   } finally {
     await browser.close().catch(() => {});
   }
+}
+
+/**
+ * Shrinks an uploaded picture down to a card thumbnail.
+ *
+ * Carousel thumbnails come free, as a screenshot of slide one taken during the
+ * render that was happening anyway. An uploaded image has no such render to
+ * borrow from, and a 4MB PNG out of an image generator cannot go straight into
+ * the 2MB thumbnail field, so this is the one case that pays for its own
+ * browser launch.
+ */
+export async function scaleThumbnail(image: Buffer, mimeType: string): Promise<Buffer> {
+  return redrawImage(image, mimeType, {
+    width: THUMBNAIL_WIDTH_PX,
+    quality: THUMBNAIL_QUALITY,
+  });
+}
+
+/** A slide is SLIDE_WIDTH_PX wide, so nothing larger can ever be seen. */
+const SLIDE_IMAGE_QUALITY = 84;
+
+/** A template image at slide width, in colour and in black and white. */
+export async function prepareSlideImage(
+  image: Buffer,
+  mimeType: string,
+): Promise<{ colour: Buffer; mono: Buffer }> {
+  const colour = await redrawImage(image, mimeType, {
+    width: SLIDE_WIDTH_PX,
+    quality: SLIDE_IMAGE_QUALITY,
+  });
+  const mono = await redrawImage(image, mimeType, {
+    width: SLIDE_WIDTH_PX,
+    quality: SLIDE_IMAGE_QUALITY,
+    grayscale: true,
+  });
+  return { colour, mono };
 }
 
 export interface RendererDiagnosis {

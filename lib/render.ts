@@ -1,6 +1,7 @@
 import Handlebars from 'handlebars';
 
 import { BRAND, logoDataUri } from './brand';
+
 import { stripEmojis, stripEmojisDeep } from './sanitize';
 import type { GeneratedPayload, HtmlTemplate, SlideRole } from './types';
 
@@ -45,7 +46,11 @@ function resolveRole(role: SlideRole | undefined, index: number, total: number):
  * Every string is stripped of emojis one last time on the way in, so nothing
  * that reaches Chromium can carry one.
  */
-export function renderTemplate(template: HtmlTemplate, payload: GeneratedPayload): string {
+export function renderTemplate(
+  template: HtmlTemplate,
+  payload: GeneratedPayload,
+  assets: Record<string, string> = {},
+): string {
   const total = payload.slides.length;
 
   const safePayload = stripEmojisDeep({
@@ -83,6 +88,12 @@ export function renderTemplate(template: HtmlTemplate, payload: GeneratedPayload
     ...safePayload,
     wordmark: BRAND.wordmark,
     brandName: BRAND.name,
+    author: BRAND.author,
     logoDataUri: logoDataUri(),
+    // Images from templates/assets, as {{assets.portrait}} and so on. Same
+    // reasoning as the logo: setContent gives the page no origin, so a path
+    // would resolve to nothing. Passed in rather than read here because
+    // preparing them needs a browser, and this function is synchronous.
+    assets,
   });
 }

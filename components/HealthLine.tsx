@@ -6,6 +6,8 @@ import { CircleAlert, RefreshCw } from 'lucide-react';
 interface Health {
   gemini: boolean;
   renderer: boolean;
+  /** Why there is no browser. Absent when there is one, or on an older server. */
+  rendererReason?: string | null;
   pocketbase: boolean;
   templateCount: number;
 }
@@ -43,7 +45,11 @@ export default function HealthLine() {
   const problems: string[] = [];
   if (!health.gemini) problems.push('GEMINI_API_KEY is not set, so nothing can be written.');
   if (!health.renderer) {
-    problems.push('No Chrome or Chromium was found, so slides cannot be rendered.');
+    // The server says which of the two causes it is when it can. The old
+    // sentence stays as the fallback, for a server deployed before it could.
+    problems.push(
+      health.rendererReason || 'No Chrome or Chromium was found, so slides cannot be rendered.',
+    );
   }
   if (!health.pocketbase) {
     problems.push('PocketBase is unreachable, so posts cannot be saved to your history.');

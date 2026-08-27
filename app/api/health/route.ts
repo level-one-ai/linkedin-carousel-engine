@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { environmentReport } from '@/lib/config';
-import { executablePath, rendererAvailable } from '@/lib/chromium';
+import { rendererDiagnosis } from '@/lib/chromium';
 import { listTemplates } from '@/lib/pocketbase';
 
 export const runtime = 'nodejs';
@@ -15,10 +15,15 @@ export async function GET() {
     .then((templates) => ({ up: true, templateCount: templates.length }))
     .catch(() => ({ up: false, templateCount: 0 }));
 
+  // One call, three fields: whether slides can be rendered, which browser would
+  // do it, and — when there is none — which of the two causes it is.
+  const renderer = rendererDiagnosis();
+
   return NextResponse.json({
     gemini: Boolean(process.env.GEMINI_API_KEY),
-    renderer: rendererAvailable(),
-    rendererPath: executablePath() ?? null,
+    renderer: renderer.available,
+    rendererPath: renderer.path ?? null,
+    rendererReason: renderer.reason ?? null,
     pocketbase: pocketbase.up,
     templateCount: pocketbase.templateCount,
     environment: environmentReport(),

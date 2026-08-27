@@ -337,7 +337,53 @@ export async function scaleThumbnail(image: Buffer, mimeType: string): Promise<B
   }
 }
 
+export interface RendererDiagnosis {
+  available: boolean;
+  /** The browser that would be used, whether or not it is actually there. */
+  path?: string;
+  /** Why there is no browser, phrased for the person reading the screen. */
+  reason?: string;
+}
+
+/**
+ * Readiness probe for the dashboard: is there a browser to render with, and if
+ * not, which of the two very different reasons is it.
+ *
+ * "No browser is installed" and "PDF_CHROMIUM_PATH points at a file that is not
+ * there" have nothing in common as remedies — the first is a deployment that
+ * did not use the Dockerfile, the second is one setting with a typo in it — and
+ * reporting both as "no Chromium found" sends people looking in the wrong
+ * place. So the distinction is made here and carried through /api/health to the
+ * warning box, rather than being left for someone to work out.
+ */
+export function rendererDiagnosis(): RendererDiagnosis {
+  const explicit = process.env.PDF_CHROMIUM_PATH?.trim();
+
+  if (explicit) {
+    if (existsSync(explicit)) return { available: true, path: explicit };
+    return {
+      available: false,
+      path: explicit,
+      reason:
+        `PDF_CHROMIUM_PATH is set to "${explicit}", but there is no file there, ` +
+        'so slides cannot be rendered. Either correct that setting or remove it ' +
+        'and let the app find a browser itself.',
+    };
+  }
+
+  const found = executablePath();
+  if (found) return { available: true, path: found };
+
+  return {
+    available: false,
+    reason:
+      'No Chrome or Chromium is installed on this server, so slides cannot be ' +
+      'rendered. If this is a Coolify deployment, the Build Pack is set to ' +
+      'Nixpacks: change it to Dockerfile and deploy again.',
+  };
+}
+
 /** Readiness probe for the dashboard: is there a browser to render with. */
 export function rendererAvailable(): boolean {
-  return Boolean(executablePath());
+  return rendererDiagnosis().available;
 }

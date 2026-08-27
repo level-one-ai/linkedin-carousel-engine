@@ -164,8 +164,20 @@ field without touching anything else.
 Do not trust a green tick. Open the app and make a real post.
 
 - **You get a carousel** — you are finished.
-- **"Could not find a Chrome or Chromium"** — the Build Pack is still set to
-  Nixpacks. Go back to Step B, change it, and deploy again.
+- **"No Chrome or Chromium is installed on this server"** — the Build Pack is
+  still set to Nixpacks. Go back to Step B, change it, and deploy again.
+- **"PDF_CHROMIUM_PATH is set to ... but there is no file there"** — the Build
+  Pack is right, but you have added that variable by hand under Step C and it
+  points somewhere wrong. Delete it. The Dockerfile already sets it correctly.
+
+Open **/api/health** to see the same answer as JSON:
+
+| What it says | What it means |
+| --- | --- |
+| `"renderer": true, "rendererPath": "/usr/bin/chromium"` | Correct. This is a Dockerfile build. |
+| `"renderer": false, "rendererPath": null` | Nixpacks. There is no browser on the server at all. |
+| `"renderer": false` with a path | That path does not exist. Fix or remove `PDF_CHROMIUM_PATH`. |
+
 - **A yellow box saying PocketBase is unreachable** — the address is wrong, or
   it is not running. Open that address in your browser and see.
 - **A yellow box saying there are no slide designs** — you have not run Step E.

@@ -98,24 +98,41 @@ async function healTemplate(template: HtmlTemplate, warnings: string[]): Promise
 }
 
 /**
- * Templates come from PocketBase. If the database is empty or unreachable the
- * on-disk starter set takes over, so a missing database degrades the feature
- * set rather than breaking generation entirely.
+ * Every design the model may choose from.
+ *
+ * The `templates/` folder in the repository comes first and always wins.
+ * PocketBase is asked only for designs stored under a key the folder does not
+ * have, so a design can still be added without a deploy, but nothing in the
+ * database can override or break one of the five that ship with the app.
+ *
+ * That order is the whole point. A design pasted into the PocketBase admin UI
+ * comes back escaped into text or stripped of its <style> block, and renders
+ * as a page of its own source code. A file in git cannot be damaged that way.
  */
 async function resolveTemplates(warnings: string[]): Promise<HtmlTemplate[]> {
+  const bundled = loadSeedTemplates();
+  const keys = new Set(bundled.map((template) => template.template_key));
+
+  if (bundled.length === 0) {
+    warnings.push(
+      'No slide designs were found in the templates folder, so PocketBase is being used instead.',
+    );
+  }
+
+  let extra: HtmlTemplate[] = [];
   try {
-    const templates = await listTemplates();
-    if (templates.length > 0) return templates;
-    warnings.push('PocketBase has no templates yet. Using the built in starter templates.');
+    extra = (await listTemplates()).filter((template) => !keys.has(template.template_key));
   } catch (error) {
-    warnings.push('PocketBase is not reachable. Using the built in starter templates.');
+    // Not worth a warning any more. The designs are on disk; an unreachable
+    // database costs nothing here, and it is reported when saving the post.
     await logError({
       stage: 'templates',
       message: 'listTemplates failed',
       details: String(error),
     });
   }
-  return loadSeedTemplates();
+
+  return [...bundled, ...extra];
 }
 
 async function resolveChosenTemplate(
@@ -123,13 +140,16 @@ async function resolveChosenTemplate(
   available: HtmlTemplate[],
   warnings: string[],
 ): Promise<HtmlTemplate> {
+  // A design from the folder carries no id, was validated as it was read, and
+  // has nothing to repair — healTemplate is only for the database ones.
   const fromList = available.find((template) => template.template_key === templateKey);
-  if (fromList) return healTemplate(fromList, warnings);
+  if (fromList) return fromList.id ? healTemplate(fromList, warnings) : fromList;
 
   const fromDb = await getTemplateByKey(templateKey);
   if (fromDb) return healTemplate(fromDb, warnings);
 
-  return healTemplate(available[0], warnings);
+  const fallback = available[0];
+  return fallback.id ? healTemplate(fallback, warnings) : fallback;
 }
 
 export interface GenerateInput {

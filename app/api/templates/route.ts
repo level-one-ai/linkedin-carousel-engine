@@ -13,12 +13,13 @@ export const dynamic = 'force-dynamic';
  * stored as escaped text renders as one page of source code, so `ok` and
  * `problem` are worth more here than any of the rest.
  */
-function describe(template: HtmlTemplate) {
+function describe(template: HtmlTemplate, source: 'folder' | 'pocketbase') {
   const { raw_html, ...rest } = template;
   const problem = template.problem ?? templateProblem(raw_html);
 
   return {
     ...rest,
+    source,
     ok: problem === null,
     problem,
     repaired: Boolean(template.repaired),
@@ -27,20 +28,22 @@ function describe(template: HtmlTemplate) {
 }
 
 export async function GET() {
+  // Same order the generator uses: the folder first and always, then whatever
+  // PocketBase holds under a key the folder does not have.
+  const bundled = loadSeedTemplates();
+  const keys = new Set(bundled.map((template) => template.template_key));
+
+  let extra: HtmlTemplate[] = [];
   try {
-    const templates = await listTemplates();
-    if (templates.length > 0) {
-      return NextResponse.json({
-        source: 'pocketbase',
-        templates: templates.map(describe),
-      });
-    }
+    extra = (await listTemplates()).filter((template) => !keys.has(template.template_key));
   } catch {
-    // Fall through to the bundled templates below.
+    // The folder is enough. An unreachable database costs nothing here.
   }
 
   return NextResponse.json({
-    source: 'bundled',
-    templates: loadSeedTemplates().map(describe),
+    templates: [
+      ...bundled.map((template) => describe(template, 'folder')),
+      ...extra.map((template) => describe(template, 'pocketbase')),
+    ],
   });
 }

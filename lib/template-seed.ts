@@ -1,59 +1,126 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+
+import { templateProblem } from './template-html';
 import type { HtmlTemplate } from './types';
 
 /**
- * The starter template set. The seed script writes these into PocketBase, and
- * the generate route falls back to them if PocketBase is unreachable so the
- * engine still produces a carousel.
+ * The slide designs, read from the `templates/` folder in the repository.
+ *
+ * This folder is the source of truth, not PocketBase. The designs are static
+ * files that change when someone edits them in git, so putting them in a
+ * database bought nothing and cost a great deal: `raw_html` is an `editor`
+ * field, the admin UI puts a rich text editor in front of it, and a template
+ * that goes through a rich text editor comes back escaped into visible text or
+ * stripped of its <style> block. Chromium then renders the source code as
+ * words on one page. Nothing typed into an admin UI can damage a file in git.
+ *
+ * PocketBase keeps a smaller job, in `lib/pipeline.ts`: a design stored there
+ * under a key that is *not* in this folder still appears, so one can be added
+ * without a deploy. It can no longer override one of these.
  */
-export const TEMPLATE_MANIFEST: Array<Omit<HtmlTemplate, 'raw_html'> & { file: string }> = [
-  {
-    template_key: 'level_one_cream',
-    template_name: 'Level One Cream',
-    category:
-      'Clean, flat and editorial. The default for step by step walkthroughs, workflow breakdowns and anything instructional where the words carry the whole slide.',
-    file: 'level_one_cream.html',
-  },
-  {
-    template_key: 'level_one_noir',
-    template_name: 'Level One Noir',
-    category:
-      'Near black with drifting smoke. Use for myth busting, hard truths, contrarian takes and posts meant to stop the scroll with a bold claim.',
-    file: 'level_one_noir.html',
-  },
-  {
-    template_key: 'level_one_mist',
-    template_name: 'Level One Mist',
-    category:
-      'White with pale smoke. Suits tool stacks, technical architecture, product teardowns and anything that benefits from a light, airy, spacious feel.',
-    file: 'level_one_mist.html',
-  },
-  {
-    template_key: 'level_one_sand',
-    template_name: 'Level One Sand',
-    category:
-      'Warm flat beige. Best for business outcomes, before and after transformations, client results and growth stories aimed at a commercial reader.',
-    file: 'level_one_sand.html',
-  },
-  {
-    template_key: 'level_one_slate',
-    template_name: 'Level One Slate',
-    category:
-      'Heavy grey smoke with depth. Use for mistakes to avoid, risk and warning posts, and anything with a serious or cautionary tone.',
-    file: 'level_one_slate.html',
-  },
-];
+
+interface IndexEntry {
+  template_key: string;
+  template_name: string;
+  category: string;
+  file: string;
+}
+
+const FALLBACK_CATEGORY =
+  'A slide design added to the templates folder. No description was given for it, so the model has ' +
+  'little to go on when choosing between this and the others.';
 
 function templatesDirectory(): string {
   return join(process.cwd(), 'templates');
 }
 
+function readIndex(directory: string): IndexEntry[] {
+  try {
+    const parsed = JSON.parse(readFileSync(join(directory, 'index.json'), 'utf8')) as {
+      designs?: IndexEntry[];
+    };
+    return Array.isArray(parsed.designs) ? parsed.designs : [];
+  } catch (error) {
+    // A missing or malformed index is not fatal: the .html files are still
+    // there and the scan below finds them.
+    console.warn(`[templates] Could not read templates/index.json: ${String(error)}`);
+    return [];
+  }
+}
+
+/** "level_one_cream" -> "Level One Cream", for a file with no index entry. */
+function nameFromKey(key: string): string {
+  return key
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+/**
+ * Every usable design in the folder.
+ *
+ * Indexed files first, in the order the index lists them, then any other
+ * `.html` in the folder — so dropping a file in is enough to see it in the
+ * picker, and adding an entry to the index is only needed to give it a proper
+ * name and a description for the model to choose on.
+ *
+ * A file that cannot render is left out rather than offered. Serving one would
+ * reproduce the failure this whole arrangement exists to prevent.
+ */
 export function loadSeedTemplates(): HtmlTemplate[] {
-  return TEMPLATE_MANIFEST.map((entry) => ({
-    template_key: entry.template_key,
-    template_name: entry.template_name,
-    category: entry.category,
-    raw_html: readFileSync(join(templatesDirectory(), entry.file), 'utf8'),
-  }));
+  const directory = templatesDirectory();
+  const indexed = readIndex(directory);
+
+  let files: string[] = [];
+  try {
+    files = readdirSync(directory).filter((name) => name.endsWith('.html'));
+  } catch (error) {
+    console.warn(`[templates] Could not read the templates folder: ${String(error)}`);
+    return [];
+  }
+
+  const claimed = new Set(indexed.map((entry) => entry.file));
+  const entries: IndexEntry[] = [
+    ...indexed.filter((entry) => files.includes(entry.file)),
+    ...files
+      .filter((file) => !claimed.has(file))
+      .map((file) => {
+        const key = file.replace(/\.html$/, '');
+        return {
+          template_key: key,
+          template_name: nameFromKey(key),
+          category: FALLBACK_CATEGORY,
+          file,
+        };
+      }),
+  ];
+
+  const templates: HtmlTemplate[] = [];
+  for (const entry of entries) {
+    let raw_html: string;
+    try {
+      raw_html = readFileSync(join(directory, entry.file), 'utf8');
+    } catch (error) {
+      console.warn(`[templates] Could not read ${entry.file}: ${String(error)}`);
+      continue;
+    }
+
+    const problem = templateProblem(raw_html);
+    if (problem) {
+      console.warn(`[templates] Skipping ${entry.file}: ${problem}`);
+      continue;
+    }
+
+    templates.push({
+      template_key: entry.template_key,
+      template_name: entry.template_name,
+      category: entry.category,
+      raw_html,
+      problem: null,
+    });
+  }
+
+  return templates;
 }

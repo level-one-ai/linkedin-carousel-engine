@@ -69,6 +69,10 @@ export function repairTemplateHtml(raw: string): { html: string; repaired: boole
 export function templateProblem(html: string): string | null {
   if (!html.trim()) return 'it is empty';
   if (!hasRealTags(html)) return 'it is plain text rather than HTML';
+  // No stylesheet, no design: a 1080x1350 slide is entirely a CSS construct.
+  // This is also what catches an editor that took the <style> tags off and
+  // left the rules behind, where the checks below all still pass on the text.
+  if (!/<style\b/i.test(html)) return 'it has no <style> block, so there is no design left in it';
   if (!/\{\{#each\s+slides\s*\}\}/.test(html)) return 'it has no {{#each slides}} loop, so it can only ever be one page';
   if (!/page-break-after|break-after/.test(html)) return 'it has no page break rule, so the slides would run together';
   if (!/\.slide\b/.test(html)) return 'it has no .slide block for the renderer to measure';

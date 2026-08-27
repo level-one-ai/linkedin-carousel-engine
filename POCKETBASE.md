@@ -16,9 +16,17 @@ and falls back to the old one, so it works on either version.
 
 ## Collection 1: `html_templates`
 
-Your slide designs. Each row is one complete HTML file with Handlebars placeholders in it. This is
-the collection you will actually edit over time, because adding a row here is how you add a new
-carousel look.
+**Read this first: the app does not get its slide designs from here.** They are read from the
+`templates/` folder in the repository, which is the source of truth. This collection holds a copy,
+plus any design you add under a key the folder does not have — those *are* read, so a new design can
+still be added without a deploy.
+
+The split exists because `raw_html` is an `editor` field, and the admin UI puts a rich text editor in
+front of it. A template pasted in there comes back escaped into visible text or stripped of its
+`<style>` block, and a carousel then renders as a page of its own source code, saved as one slide.
+Files in git cannot be damaged that way, so the five designs that matter were moved out of reach.
+
+Each row is one complete HTML file with Handlebars placeholders in it.
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -78,6 +86,13 @@ gives the page no origin, so `/logo-mark.png` would resolve to nothing and the
 mark would silently vanish from every carousel.
 
 ### Adding your own design
+
+Put the file in `templates/` and add an entry to `templates/index.json` — key, name, file and the
+`category` sentence the model reads to choose between designs. A `.html` with no entry still works;
+it just gets its name from the filename and a generic description.
+
+To add one to a live database without redeploying, use the same key rules and run `npm run seed`
+against it (see `SETUP.md`). Never paste a template into the admin UI.
 
 1. Write your HTML with `@page { size: 1080px 1350px; margin: 0; }` and a `.slide` block that is
    exactly `1080px` by `1350px` with `page-break-after: always`.

@@ -3,6 +3,19 @@ const nextConfig = {
   output: 'standalone',
 
   /**
+   * Stamped at build time and reported by /api/health.
+   *
+   * "Did my change actually deploy" has been unanswerable from outside this app
+   * more than once, and guessing at it has cost real time. A git SHA would be
+   * better but is not available: .dockerignore excludes .git, so the build has
+   * no repository to ask. A timestamp is enough to tell a fresh build from a
+   * stale one, and it works under both Docker and Nixpacks.
+   */
+  env: {
+    BUILD_TIME: new Date().toISOString(),
+  },
+
+  /**
    * playwright-core has to be copied whole into the standalone build.
    *
    * Next traces the files a route imports and copies only those. That works for

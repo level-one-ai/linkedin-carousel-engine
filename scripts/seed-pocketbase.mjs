@@ -35,43 +35,18 @@ function loadDotEnv(path) {
   }
 }
 
-const TEMPLATES = [
-  {
-    template_key: 'level_one_cream',
-    template_name: 'Level One Cream',
-    category:
-      'Clean, flat and editorial. The default for step by step walkthroughs, workflow breakdowns and anything instructional where the words carry the whole slide.',
-    file: 'level_one_cream.html',
-  },
-  {
-    template_key: 'level_one_noir',
-    template_name: 'Level One Noir',
-    category:
-      'Near black with drifting smoke. Use for myth busting, hard truths, contrarian takes and posts meant to stop the scroll with a bold claim.',
-    file: 'level_one_noir.html',
-  },
-  {
-    template_key: 'level_one_mist',
-    template_name: 'Level One Mist',
-    category:
-      'White with pale smoke. Suits tool stacks, technical architecture, product teardowns and anything that benefits from a light, airy, spacious feel.',
-    file: 'level_one_mist.html',
-  },
-  {
-    template_key: 'level_one_sand',
-    template_name: 'Level One Sand',
-    category:
-      'Warm flat beige. Best for business outcomes, before and after transformations, client results and growth stories aimed at a commercial reader.',
-    file: 'level_one_sand.html',
-  },
-  {
-    template_key: 'level_one_slate',
-    template_name: 'Level One Slate',
-    category:
-      'Heavy grey smoke with depth. Use for mistakes to avoid, risk and warning posts, and anything with a serious or cautionary tone.',
-    file: 'level_one_slate.html',
-  },
-];
+/**
+ * The designs, read from templates/index.json — the same list the app itself
+ * reads, so this script cannot drift from what actually renders.
+ *
+ * Seeding is now a convenience rather than the supply line: the app reads the
+ * folder directly, so these records exist for anyone browsing the database and
+ * as the starting point for a design of your own.
+ */
+const TEMPLATES = (() => {
+  const index = JSON.parse(readFileSync(join(ROOT, 'templates', 'index.json'), 'utf8'));
+  return Array.isArray(index.designs) ? index.designs : [];
+})();
 
 /**
  * Designs from before the Level One set, removed on the next seed.

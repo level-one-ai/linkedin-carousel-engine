@@ -229,16 +229,39 @@ Most projects are far under 50 MB once you leave out the `node_modules` folder.
 
 ---
 
-## Step 9: Load the starter slide designs
+## Step 9: Create the database tables
 
-This creates the database tables and loads four ready made slide designs into them.
+This creates the tables the app saves your posts into. It also copies the slide designs into the
+database, though the app no longer needs them there.
 
 ```bash
 npm install
 npm run seed
 ```
 
-You should see lines like `Created collection html_templates.` and `Added template dark_technical.`
+You should see lines like `Created collection generated_posts.` and `Added template level_one_cream.`
+
+**The slide designs themselves live in the `templates/` folder in the repository, not in the
+database.** They are read from there every time a carousel is made. That is deliberate: `raw_html`
+is a rich text field, so a design pasted into the PocketBase admin screen comes back either turned
+into plain visible text or stripped of its styling, and then a carousel renders as a page of its own
+source code. A file in the repository cannot be damaged that way.
+
+### Putting a design of your own into the database
+
+You can still add a design without redeploying, under a **new** name that is not one of the five.
+Write the file, add it to `templates/index.json`, and run the same command against your live
+database:
+
+```bash
+POCKETBASE_URL=https://pb.levelone.digital \
+POCKETBASE_ADMIN_EMAIL=you@example.com \
+POCKETBASE_ADMIN_PASSWORD='your-password' \
+npm run seed
+```
+
+Use this rather than pasting into the admin screen. It sends the file exactly as written, through
+the API, where the rich text editor never touches it.
 
 **It is safe to run this again at any time.** Collections that already exist are left alone, and if
 a new version of the app needs an extra field, running it again adds just that field.
@@ -291,7 +314,13 @@ The database is not running. Type `docker compose up -d pocketbase` and wait 20 
 running but still unreachable, check that `POCKETBASE_URL` matches your setup from Step 5.
 
 **"PocketBase has no slide designs yet."**
-You skipped Step 9, or it failed. Run `npm run seed` again and read the message it prints.
+You skipped Step 9, or it failed. Run `npm run seed` again and read the message it prints. This does
+not stop carousels being made: the designs come from the `templates/` folder either way.
+
+**I want to know whether my latest change is actually live.**
+Open `/api/health` on the running app. `buildTime` is stamped when the app is built, so if it does
+not move after a deploy, that deploy did not take. The same page reports how many designs came from
+the folder and how many from the database.
 
 **A post generates but does not appear under Previous Posts.**
 The app will tell you this and offer the file for download so you do not lose it. It usually means

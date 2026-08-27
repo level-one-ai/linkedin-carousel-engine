@@ -1,0 +1,36 @@
+{
+  "_comment": "The slide designs. This folder is where they live and where they are read from: the app uses these files, not the copies in PocketBase, so nothing typed into an admin UI can break them. To add a design, drop the .html in beside this file and add an entry here. An .html with no entry still works, but writes its own name and gets a generic category.",
+  "_category_note": "category is not a label. It is the sentence the model reads to decide which design suits a post, so write it as a description of what the design is good for.",
+  "designs": [
+    {
+      "template_key": "level_one_cream",
+      "template_name": "Level One Cream",
+      "file": "level_one_cream.html",
+      "category": "Clean, flat and editorial. The default for step by step walkthroughs, workflow breakdowns and anything instructional where the words carry the whole slide."
+    },
+    {
+      "template_key": "level_one_noir",
+      "template_name": "Level One Noir",
+      "file": "level_one_noir.html",
+      "category": "Near black with drifting smoke. Use for myth busting, hard truths, contrarian takes and posts meant to stop the scroll with a bold claim."
+    },
+    {
+      "template_key": "level_one_mist",
+      "template_name": "Level One Mist",
+      "file": "level_one_mist.html",
+      "category": "White with pale smoke. Suits tool stacks, technical architecture, product teardowns and anything that benefits from a light, airy, spacious feel."
+    },
+    {
+      "template_key": "level_one_sand",
+      "template_name": "Level One Sand",
+      "file": "level_one_sand.html",
+      "category": "Warm flat beige. Best for business outcomes, before and after transformations, client results and growth stories aimed at a commercial reader."
+    },
+    {
+      "template_key": "level_one_slate",
+      "template_name": "Level One Slate",
+      "file": "level_one_slate.html",
+      "category": "Heavy grey smoke with depth. Use for mistakes to avoid, risk and warning posts, and anything with a serious or cautionary tone."
+    }
+  ]
+}

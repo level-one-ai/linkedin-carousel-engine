@@ -62,17 +62,19 @@ Rendering needs a Chrome or Chromium. If you have Google Chrome installed, nothi
 2. **Analysis.** `lib/gemini.ts` sends that string to `gemini-2.5-flash` with a `responseSchema`.
    One call returns the caption and then, depending on the type, either the chosen `template_key`
    with eight role-tagged slides, or the Google Labs Flow prompt.
-3. **Rendering.** Carousels only. `lib/render.ts` pulls the raw HTML for that key out of PocketBase,
-   injects the logo and the wordmark, and merges the slide payload in with Handlebars.
+3. **Rendering.** Carousels only. `lib/render.ts` takes the raw HTML for that key — from the
+   `templates/` folder, which is the source of truth — injects the logo and the wordmark, and merges
+   the slide payload in with Handlebars.
 4. **Compilation.** Carousels only. `lib/chromium.ts` drives headless Chromium directly:
    `page.pdf()` at 11.25in x 14.0625in, plus a JPEG of slide one for the history cards, both from
    one browser launch.
 5. **Persistence.** `lib/pocketbase.ts` writes the record. A carousel arrives with its file; a
    single image post arrives without one and gets it later through `/api/posts/[id]/image`.
 
-`lib/pipeline.ts` sequences all of it. If PocketBase is unreachable the five designs in
-`templates/` are used instead, and a carousel that cannot be saved is handed to the browser
-directly rather than lost.
+`lib/pipeline.ts` sequences all of it. The five designs always come from `templates/`; PocketBase is
+asked only for designs stored under a key that folder does not have, so one can be added without a
+deploy but nothing in the database can break the five. A carousel that cannot be saved is handed to
+the browser directly rather than lost.
 
 ---
 
@@ -167,7 +169,7 @@ lib/
   template-html.ts          un-escapes a mangled design, and rejects an unusable one
   pipeline.ts               end to end orchestration
   config.ts                 every environment variable, read in one place
-templates/                  the four starter slide designs
+templates/                  the slide designs themselves, and index.json describing them
 scripts/seed-pocketbase.mjs collection creation, migration and template seeding
 ```
 

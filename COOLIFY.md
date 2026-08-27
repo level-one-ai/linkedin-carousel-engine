@@ -66,6 +66,13 @@ to tell Coolify to use it.
 
 Nixpacks, which is Coolify's default, builds a server with no Chromium in it.
 
+**If you are stuck on Nixpacks**, there is a `nixpacks.toml` in the project that
+tells it to install Chromium and the fonts too, so the app works either way. The
+Dockerfile is still the supported route — it pins exact package versions, where
+Nixpacks resolves whatever nixpkgs offers on the day — but the fallback is there
+so a Build Pack setting that will not stick is not the end of it. Nothing is
+needed to switch it on beyond deploying a commit that contains the file.
+
 ---
 
 ## Step A — Make the application

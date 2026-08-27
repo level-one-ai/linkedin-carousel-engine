@@ -69,6 +69,21 @@ function playwrightChromiums(root: string): string[] {
 }
 
 /**
+ * Browsers reachable through PATH.
+ *
+ * The fixed list below covers a browser installed by a package manager into a
+ * predictable place. Nix does not work that way: `chromium` from nixpkgs lands
+ * in /nix/store under a hashed path that cannot be written down in advance, and
+ * is reached only because the build puts it on PATH. That is what a Nixpacks
+ * build gives you, so without this the browser it installed would be invisible.
+ */
+function pathChromiums(): string[] {
+  const entries = (process.env.PATH ?? '').split(path.delimiter).filter(Boolean);
+  const names = ['chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable', 'chrome'];
+  return entries.flatMap((dir) => names.map((name) => path.join(dir, name)));
+}
+
+/**
  * Finds a Chromium to render with.
  *
  * Most machines already have Google Chrome or Edge installed, so this looks for
@@ -99,6 +114,9 @@ export function executablePath(): string | undefined {
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
     'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    // Last, because a browser on PATH is more likely to be a wrapper script or
+    // a snap shim than the fixed locations above are.
+    ...pathChromiums(),
   ];
 
   return candidates.find((candidate) => existsSync(candidate));
@@ -378,8 +396,8 @@ export function rendererDiagnosis(): RendererDiagnosis {
     available: false,
     reason:
       'No Chrome or Chromium is installed on this server, so slides cannot be ' +
-      'rendered. If this is a Coolify deployment, the Build Pack is set to ' +
-      'Nixpacks: change it to Dockerfile and deploy again.',
+      'rendered. If this is a Coolify deployment, the Build Pack is not using ' +
+      'the Dockerfile: set it to Dockerfile and deploy again.',
   };
 }
 

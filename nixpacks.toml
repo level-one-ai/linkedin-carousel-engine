@@ -1,0 +1,28 @@
+# Nixpacks fallback recipe.
+#
+# The Dockerfile is the supported way to deploy this — see COOLIFY.md. This file
+# exists because Nixpacks is Coolify's default Build Pack and is easy to leave
+# selected by accident, and a Nixpacks image has no browser in it, which puts
+# the app one step from working: Gemini writes the post, and then rendering the
+# slides fails because there is no Chromium.
+#
+# Nothing here affects a Dockerfile build. Nixpacks reads this file; Docker does
+# not know it exists.
+#
+# "..." keeps the packages Nixpacks worked out for itself (Node and npm) and
+# adds ours on top, rather than replacing the list.
+[phases.setup]
+nixPkgs = [
+  "...",
+  # What actually renders the slides. Nix puts it in /nix/store under a hashed
+  # path, so it cannot be named in PDF_CHROMIUM_PATH ahead of time — it is found
+  # through PATH by pathChromiums() in lib/chromium.ts.
+  "chromium",
+  # Metric-compatible Helvetica and Times, which the slide templates ask for.
+  # Without them Chromium falls back to something wider and headings that fit
+  # the 1350px canvas start overflowing it, in the PDF only.
+  "liberation_ttf",
+  # Chromium finds installed fonts through fontconfig. No fontconfig, no
+  # Liberation, whether or not the package above is present.
+  "fontconfig",
+]

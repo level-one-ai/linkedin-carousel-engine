@@ -325,8 +325,8 @@ const THUMBNAIL_WIDTH_PX = 432;
 async function redrawImage(
   image: Buffer,
   mimeType: string,
-  options: { width: number; quality: number; grayscale?: boolean },
-): Promise<Buffer> {
+  options: { width: number; quality: number; grayscale?: boolean; transparent?: boolean },
+): Promise<{ buffer: Buffer; mimeType: string }> {
   const browser = await launch();
 
   try {
@@ -336,7 +336,12 @@ async function redrawImage(
     });
 
     await page.setContent(
-      `<style>html,body{margin:0;padding:0;background:#faf9f6}` +
+      // A transparent source gets no background painted behind it. Painting one
+      // and saving as JPEG — which has no alpha channel at all — turns a
+      // cut-out figure into a figure inside a #faf9f6 rectangle, which then
+      // sits as a visible box on a slide of any other colour.
+      `<style>html,body{margin:0;padding:0` +
+        `${options.transparent ? '' : ';background:#faf9f6'}}` +
         `img{display:block;width:${options.width}px;height:auto` +
         `${options.grayscale ? ';filter:grayscale(1) contrast(1.06)' : ''}}</style>` +
         `<img id="t" src="data:${mimeType};base64,${image.toString('base64')}">`,
@@ -353,13 +358,21 @@ async function redrawImage(
     const height = Math.max(1, Math.round(box?.height ?? options.width));
     await page.setViewportSize({ width: options.width, height });
 
-    return Buffer.from(
-      await page.screenshot({
-        type: 'jpeg',
-        quality: options.quality,
-        clip: { x: 0, y: 0, width: options.width, height },
-      }),
-    );
+    const clip = { x: 0, y: 0, width: options.width, height };
+
+    if (options.transparent) {
+      return {
+        buffer: Buffer.from(await page.screenshot({ type: 'png', omitBackground: true, clip })),
+        mimeType: 'image/png',
+      };
+    }
+
+    return {
+      buffer: Buffer.from(
+        await page.screenshot({ type: 'jpeg', quality: options.quality, clip }),
+      ),
+      mimeType: 'image/jpeg',
+    };
   } finally {
     await browser.close().catch(() => {});
   }
@@ -375,30 +388,55 @@ async function redrawImage(
  * browser launch.
  */
 export async function scaleThumbnail(image: Buffer, mimeType: string): Promise<Buffer> {
-  return redrawImage(image, mimeType, {
+  // Always JPEG. A thumbnail is drawn on the history card's own background and
+  // has a 2MB field to fit, which is what the format was chosen for.
+  const { buffer } = await redrawImage(image, mimeType, {
     width: THUMBNAIL_WIDTH_PX,
     quality: THUMBNAIL_QUALITY,
   });
+  return buffer;
 }
 
-/** A slide is SLIDE_WIDTH_PX wide, so nothing larger can ever be seen. */
 const SLIDE_IMAGE_QUALITY = 84;
 
-/** A template image at slide width, in colour and in black and white. */
+/**
+ * The widest a template image is drawn on a slide.
+ *
+ * Not SLIDE_WIDTH_PX: no design puts a picture across the full 1080px any
+ * more, and this is the number that keeps a transparent cut-out affordable,
+ * since it has to be a PNG and a PNG of a photograph is many times the size of
+ * the same photograph as a JPEG.
+ */
+const TEMPLATE_IMAGE_WIDTH_PX = 640;
+
+/**
+ * Formats that can carry an alpha channel.
+ *
+ * A cut-out arrives as one of these. A JPEG cannot be transparent, so a
+ * photograph with its background still on takes the cheaper path.
+ */
+const TRANSPARENT_CAPABLE = new Set(['image/png', 'image/webp', 'image/avif']);
+
+export interface PreparedImage {
+  buffer: Buffer;
+  mimeType: string;
+}
+
+/** A template image at the size a slide shows it, in colour and in black and white. */
 export async function prepareSlideImage(
   image: Buffer,
   mimeType: string,
-): Promise<{ colour: Buffer; mono: Buffer }> {
-  const colour = await redrawImage(image, mimeType, {
-    width: SLIDE_WIDTH_PX,
+): Promise<{ colour: PreparedImage; mono: PreparedImage }> {
+  const shared = {
+    width: TEMPLATE_IMAGE_WIDTH_PX,
     quality: SLIDE_IMAGE_QUALITY,
-  });
-  const mono = await redrawImage(image, mimeType, {
-    width: SLIDE_WIDTH_PX,
-    quality: SLIDE_IMAGE_QUALITY,
-    grayscale: true,
-  });
-  return { colour, mono };
+    transparent: TRANSPARENT_CAPABLE.has(mimeType.toLowerCase()),
+  };
+
+  return {
+    colour: await redrawImage(image, mimeType, shared),
+    mono: await redrawImage(image, mimeType, { ...shared, grayscale: true }),
+  };
 }
 
 export interface RendererDiagnosis {

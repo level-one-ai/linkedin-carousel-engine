@@ -7,16 +7,16 @@
 
   html, body {
     width: 1080px;
-    background: #0a0a09;
+    background: #f4efe4;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     font-family: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
   }
 
-  /* Near black at the top lifting to a lighter grey toward the bottom, which
-     is the background the reference carousel uses. A gradient rather than an
-     image, so it costs nothing in the PDF and cannot go missing. Drop a
-     background.* into templates/assets to override it in .slide-photo. */
+  /* Cream, the same #f4efe4 the Level One Cream design uses, so the two share
+     one cream rather than two near-identical ones. The photograph is a cut-out
+     with no background of its own, so the page colour is what shows behind it
+     and the two have to agree exactly. */
   .slide {
     position: relative;
     width: 1080px;
@@ -24,8 +24,8 @@
     page-break-after: always;
     break-after: page;
     overflow: hidden;
-    background: linear-gradient(178deg, #0a0a09 0%, #131211 46%, #26241f 78%, #3a372f 100%);
-    color: #f7f5f0;
+    background: #f4efe4;
+    color: #14120e;
     padding: 76px 84px 84px;
     display: flex;
     flex-direction: column;
@@ -47,13 +47,13 @@
     gap: 24px;
     font-size: 25px;
     letter-spacing: 0.04em;
-    color: #cfcabf;
+    color: #6b6357;
     padding-bottom: 26px;
-    border-bottom: 1px solid rgba(247,245,240,0.16);
+    border-bottom: 1px solid rgba(20,18,14,0.16);
     margin-bottom: 78px;
   }
 
-  .topbar .company { color: #a8a294; }
+  .topbar .company { color: #6b6357; }
 
   /* ---- Shared type ----------------------------------------------------- */
   .kicker {
@@ -61,12 +61,12 @@
     letter-spacing: 0.26em;
     text-transform: uppercase;
     font-weight: 700;
-    color: #a8a294;
+    color: #6b6357;
     margin-bottom: 28px;
   }
 
   /* The accent is weight, not colour: the reference picks a word out in gold,
-     and this palette is off-white on black and nothing else. */
+     and this palette is ink on cream and nothing else. */
   .heading {
     font-size: 82px;
     line-height: 1.06;
@@ -80,7 +80,7 @@
   .body {
     font-size: 34px;
     line-height: 1.5;
-    color: #cfcabf;
+    color: #6b6357;
     max-width: 880px;
   }
 
@@ -106,7 +106,7 @@
     top: 17px;
     width: 22px;
     height: 2px;
-    background: #f7f5f0;
+    background: #14120e;
   }
 
   .spacer { flex: 1; }
@@ -118,14 +118,14 @@
     font-size: 23px;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: #a8a294;
+    color: #6b6357;
   }
 
   /* The forward arrow, drawn rather than typed so no font has to own it. */
   .arrow {
     width: 96px;
     height: 2px;
-    background: #f7f5f0;
+    background: #14120e;
     position: relative;
   }
 
@@ -136,63 +136,53 @@
     top: -7px;
     width: 16px;
     height: 16px;
-    border-right: 2px solid #f7f5f0;
-    border-top: 2px solid #f7f5f0;
+    border-right: 2px solid #14120e;
+    border-top: 2px solid #14120e;
     transform: rotate(45deg);
   }
 
   /* ---- Slides 1 and 8: the photograph ----------------------------------
-     Same picture both times: in colour on the cover, and the black and white
-     copy on the sign off. Both are prepared at slide width before they get
-     here. */
+     The picture is small and anchored to the bottom left, cut off by the edge
+     of the page, with the words above it — the arrangement the reference uses.
+     It is a cut-out with no background of its own, so the cream behind it is
+     the page itself. */
+
+  /* Reserved for the photograph. The text block is given a bottom padding of
+     the same height, which is what guarantees the two never overlap however
+     long a heading the model writes. */
   .slide-photo {
-    padding: 0;
-    justify-content: flex-end;
+    padding: 76px 84px 0;
+    justify-content: flex-start;
   }
 
   .slide-photo > .portrait {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center 22%;
-  }
-
-  /* Lets the type sit on the picture without a box around it. */
-  .slide-photo > .scrim {
-    position: absolute;
     left: 0;
-    right: 0;
     bottom: 0;
-    height: 74%;
-    background: linear-gradient(
-      180deg,
-      rgba(10,10,9,0) 0%,
-      rgba(10,10,9,0.62) 34%,
-      rgba(10,10,9,0.94) 68%,
-      rgba(10,10,9,0.99) 100%
-    );
+    width: 560px;
+    height: 620px;
+    object-fit: contain;
+    object-position: left bottom;
   }
 
   .slide-photo > .photo-topbar {
-    position: absolute;
-    top: 76px;
-    left: 84px;
-    right: 84px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 24px;
     font-size: 25px;
     letter-spacing: 0.04em;
-    color: #f0ece2;
-    text-shadow: 0 2px 18px rgba(0,0,0,0.65);
+    color: #6b6357;
+    padding-bottom: 26px;
+    border-bottom: 1px solid rgba(20,18,14,0.16);
   }
 
   .slide-photo > .photo-text {
     position: relative;
     z-index: 1;
-    padding: 0 84px 88px;
+    padding-top: 54px;
+    /* The photograph's height, so the type stops above it. */
+    padding-bottom: 620px;
     width: 100%;
   }
 
@@ -200,58 +190,69 @@
     width: 108px;
     height: 108px;
     object-fit: contain;
-    filter: invert(1);
     margin-bottom: 34px;
   }
 
   .photo-heading {
-    font-size: 88px;
-    line-height: 1.04;
+    font-size: 64px;
+    line-height: 1.08;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: -0.015em;
   }
 
   .photo-body {
-    font-size: 33px;
+    font-size: 28px;
     line-height: 1.45;
-    color: #ddd8cc;
-    margin-top: 30px;
-    max-width: 840px;
+    color: #6b6357;
+    margin-top: 26px;
+    max-width: 800px;
   }
 
   .photo-steps {
     list-style: none;
-    margin-top: 34px;
+    margin-top: 28px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    font-size: 30px;
-    color: #ddd8cc;
+    gap: 14px;
+    font-size: 26px;
+    color: #6b6357;
   }
 
-  .photo-steps li { padding-left: 40px; position: relative; }
+  .photo-steps li { padding-left: 38px; position: relative; }
 
   .photo-steps li::before {
     content: "";
     position: absolute;
     left: 0;
-    top: 18px;
+    top: 16px;
     width: 20px;
     height: 2px;
-    background: #f7f5f0;
+    background: #14120e;
   }
 
-  .photo-foot {
+  /* Bottom right, clear of the picture in the opposite corner. The width is
+     capped rather than left to the content: a long project title stretches the
+     row left across the photograph, where it is unreadable. */
+  .slide-photo > .photo-foot {
+    position: absolute;
+    right: 84px;
+    bottom: 84px;
+    z-index: 1;
+    width: 420px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-top: 44px;
-    font-size: 24px;
+    justify-content: flex-end;
+    gap: 30px;
+    font-size: 23px;
+    line-height: 1.5;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: #cfcabf;
+    color: #6b6357;
+    text-align: right;
   }
+
+  .slide-photo > .photo-foot .arrow { flex: none; }
 
   /* ---- Slide 7: the summary checklist ---------------------------------- */
   .checklist {
@@ -267,7 +268,7 @@
     padding: 22px 28px 22px 76px;
     font-size: 30px;
     line-height: 1.35;
-    border: 1px solid rgba(247,245,240,0.22);
+    border: 1px solid rgba(20,18,14,0.18);
     border-radius: 16px;
   }
 
@@ -278,8 +279,8 @@
     top: 30px;
     width: 11px;
     height: 21px;
-    border-right: 3px solid #f7f5f0;
-    border-bottom: 3px solid #f7f5f0;
+    border-right: 3px solid #14120e;
+    border-bottom: 3px solid #14120e;
     transform: rotate(42deg);
   }
 </style>
@@ -288,7 +289,6 @@
 <section class="slide slide-{{role}}{{#if isHook}} slide-photo{{/if}}{{#if isCta}} slide-photo{{/if}}">
   {{#if isHook}}
     <img class="portrait" src="{{../assets.portrait}}" alt="" />
-    <div class="scrim"></div>
     <div class="photo-topbar">
       <span>{{../author}}</span>
       <span>{{../brandName}}</span>
@@ -297,10 +297,10 @@
       <img class="photo-mark" src="{{../logoDataUri}}" alt="" />
       <h1 class="photo-heading">{{heading}}</h1>
       {{#if body}}<p class="photo-body">{{body}}</p>{{/if}}
-      <div class="photo-foot">
-        <span>{{../title}}</span>
-        <span class="arrow"></span>
-      </div>
+    </div>
+    <div class="photo-foot">
+      <span>{{../title}}</span>
+      <span class="arrow"></span>
     </div>
   {{else if isCta}}
     <!-- The black and white copy is made once by lib/template-assets.ts, not
@@ -308,7 +308,6 @@
          rasterises the filtered image at full page size. On a detailed
          photograph that alone took the carousel from under 1MB to 6.3MB. -->
     <img class="portrait" src="{{../assets.portraitMono}}" alt="" />
-    <div class="scrim"></div>
     <div class="photo-topbar">
       <span>{{../author}}</span>
       <span>{{../brandName}}</span>
@@ -321,10 +320,10 @@
           {{#each bullets}}<li>{{this}}</li>{{/each}}
         </ul>
       {{/if}}
-      <div class="photo-foot">
-        <span>{{../wordmark}}</span>
-        <span>{{number}} / {{../totalLabel}}</span>
-      </div>
+    </div>
+    <div class="photo-foot">
+      <span>{{../wordmark}}</span>
+      <span>{{number}} / {{../totalLabel}}</span>
     </div>
   {{else}}
     <div class="topbar">

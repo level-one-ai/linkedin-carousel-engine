@@ -7,31 +7,45 @@ design needs one; nothing else here does yet.
 
 | File | Used by | What it should be |
 | --- | --- | --- |
-| `portrait.jpg` | Level One Portrait | A photograph of you. It fills the whole first slide and the whole last slide, so a head and shoulders shot with room around you works best. |
-| `background.jpg` | optional, nothing yet | A background image, if you ever want one instead of the built in gradient. |
+| `portrait.png` | Level One Portrait | A photograph of you **with the background removed**. |
 
-`.jpg`, `.jpeg`, `.png`, `.webp` and `.avif` all work. The name before the dot
-is what the design asks for, so the file must be called `portrait`, not
-`portrait-final-2`.
+`.png`, `.webp`, `.jpg` and `.avif` all work. The name before the dot is what the
+design asks for, so the file must be called `portrait`, not `portrait-final-2`.
+
+## Remove the background
+
+This matters more than anything else here. The Portrait design puts you in the
+bottom left corner of a cream page, cut off by the bottom edge, with the words
+above you. There is no frame and no panel: the cream you are standing on is the
+page itself. A photograph with its own background still attached appears as a
+rectangle of some other colour sitting on the page.
+
+So save it as a **PNG with a transparent background**. Any background remover
+will do it. Transparency is carried all the way through — the file is redrawn
+before it reaches the slide, and that redraw keeps the alpha channel and stays a
+PNG rather than flattening it onto a colour.
+
+A head and shoulders shot works best, since only the top two thirds of you is
+visible above the bottom edge of the page.
 
 ## Size
 
-**Keep it under 4MB**, and 1080 pixels wide is all a slide can show — anything
-larger is thrown away by the renderer at that width anyway. A file over 4MB is
-skipped with a note in the server log, because eight slides have to fit inside
-a 10MB limit between them.
+Anything up to 12MB is read. You do not need to shrink it yourself: every image
+is redrawn at 640 pixels wide, which is the widest a slide draws one, before it
+is used. Measured on a heavily detailed cut-out of 1.5MB, the finished eight
+slide carousel came to 1.3MB against a 10MB limit.
 
 ## Until you add one
 
-The Portrait design does not appear in the picker at all until `portrait.*` is
-in this folder. That is deliberate: a design built around a photograph should
-not offer itself with an empty frame where the photograph goes. `/api/templates`
-says which file it is waiting for.
+The Portrait design does not appear in the picker at all until `portrait.*` is in
+this folder. That is deliberate: a design built around a photograph should not
+offer itself with an empty space where the photograph goes. `/api/templates` says
+which file it is waiting for.
 
 ## How it gets into the PDF
 
-Not by path. A slide design is handed to the browser with no address of its
-own, so `/portrait.jpg` would point at nothing and the picture would silently
-vanish from the PDF. The file is read and embedded instead, which is why it
-lives here in the repository rather than being uploaded somewhere. Add the
-file, commit it, redeploy.
+Not by path. A slide design is handed to the browser with no address of its own,
+so `/portrait.png` would point at nothing and the picture would silently vanish
+from the PDF. The file is read and embedded instead, which is why it lives here
+in the repository rather than being uploaded somewhere. Add the file, commit it,
+redeploy.

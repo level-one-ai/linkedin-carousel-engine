@@ -25,8 +25,15 @@ const EXTENSIONS: Record<string, string> = {
   '.avif': 'image/avif',
 };
 
-/** 4MB an image. Eight slides have to fit a 10MB field between them. */
-const MAX_BYTES = 4 * 1024 * 1024;
+/**
+ * How large a file this will read.
+ *
+ * Generous, because it is not the number that matters: every image is redrawn
+ * at the width a slide actually shows it before it reaches a template, so the
+ * source size affects how long that takes and nothing else. A cut-out saved
+ * straight out of a background remover is easily this big.
+ */
+const MAX_BYTES = 12 * 1024 * 1024;
 
 export function assetsDirectory(): string {
   return join(process.cwd(), 'templates', 'assets');
@@ -64,7 +71,7 @@ export function loadTemplateAssets(): Record<string, string> {
       if (bytes.length > MAX_BYTES) {
         console.warn(
           `[assets] Skipping ${file}: ${(bytes.length / 1024 / 1024).toFixed(1)}MB is past the ` +
-            '4MB limit. Save it smaller — 1080 pixels wide is all a slide can show.',
+            '12MB limit. Save it smaller — around 1000 pixels wide is plenty.',
         );
         continue;
       }
@@ -108,8 +115,11 @@ export async function prepareTemplateAssets(): Promise<Record<string, string>> {
 
     try {
       const { colour, mono } = await prepareSlideImage(Buffer.from(match[2], 'base64'), match[1]);
-      out[name] = `data:image/jpeg;base64,${colour.toString('base64')}`;
-      out[`${name}Mono`] = `data:image/jpeg;base64,${mono.toString('base64')}`;
+      // The type comes back from the redraw rather than being assumed: a
+      // cut-out has to stay a PNG to keep its transparency, and calling it a
+      // JPEG here would hand the browser bytes that do not match the label.
+      out[name] = `data:${colour.mimeType};base64,${colour.buffer.toString('base64')}`;
+      out[`${name}Mono`] = `data:${mono.mimeType};base64,${mono.buffer.toString('base64')}`;
     } catch (error) {
       console.warn(`[assets] Could not redraw ${name}, using it as it is: ${String(error)}`);
       out[`${name}Mono`] = dataUri;

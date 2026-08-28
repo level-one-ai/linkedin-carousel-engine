@@ -118,15 +118,21 @@ alone. See [POCKETBASE.md](POCKETBASE.md).
 
 ### The portrait design
 
-`level_one_portrait` is built around a photograph of the author: in colour filling the first slide,
-in black and white filling the last, over a near-black background that lifts to warm grey toward the
-bottom. Drop a `portrait.jpg` into [`templates/assets/`](templates/assets/README.md) and it appears;
-until you do it is not offered at all, and `/api/templates` says what it is waiting for.
+`level_one_portrait` is built around a photograph of the author, standing in the bottom left corner
+of a cream page and cut off by the bottom edge, with the words above. In colour on the first slide,
+black and white on the last. Drop a `portrait.png` into
+[`templates/assets/`](templates/assets/README.md) and it appears; until you do it is not offered at
+all, and `/api/templates` says what it is waiting for.
 
-The picture is redrawn at slide width before it is used, and the black and white copy is made once
-rather than with a CSS filter in the template. That is not fussiness: Chromium cannot put a filter
-in a PDF, so it rasterises the filtered image at full page resolution, and a detailed 961KB
-photograph took the carousel from under 1MB to 6.3MB against a 10MB field.
+**Remove the background from that photograph.** There is no frame around it: the cream it stands on
+is the page. `lib/chromium.ts` carries the alpha channel through the redraw and keeps the file a PNG
+for exactly this reason — painting a background behind it and saving as JPEG, which has no alpha at
+all, would put you inside a coloured rectangle on a page of a different colour.
+
+The black and white copy is made once rather than with a CSS filter in the template. That is not
+fussiness: Chromium cannot put a filter in a PDF, so it rasterises the filtered image at full page
+resolution, and a detailed photograph took the carousel from under 1MB to 6.3MB against a 10MB
+field.
 
 ---
 

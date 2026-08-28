@@ -2,6 +2,8 @@ import PocketBase from 'pocketbase';
 import type { RecordModel } from 'pocketbase';
 
 import { config } from './config';
+import type { SlideImage } from './chromium';
+import { PLATFORMS, PLATFORM_SPECS, emptyCaptions, type Platform, type PlatformCaptions } from './platforms';
 import { repairTemplateHtml, templateProblem } from './template-html';
 import type { HtmlTemplate, InputType, PostMode, PostSummary } from './types';
 
@@ -135,6 +137,32 @@ function toTemplate(record: RecordModel): HtmlTemplate {
  * only when it has a bundled file of the same key to put there instead. A
  * design of your own that renders is never touched.
  */
+/**
+ * Writes one platform's caption, or one platform's approval, and nothing else.
+ *
+ * A partial update is the whole point of the redo button: the other three
+ * captions have already been read and approved, and a full-record write would
+ * put them at risk of being replaced by a stale copy from the browser.
+ */
+export async function updatePlatformField(
+  id: string,
+  platform: Platform,
+  patch: { caption?: string; approved?: boolean },
+): Promise<void> {
+  const client = await requireAdmin();
+  const data: Record<string, unknown> = {};
+
+  if (patch.caption !== undefined) {
+    data[PLATFORM_SPECS[platform].captionField] = patch.caption;
+  }
+  if (patch.approved !== undefined) {
+    data[PLATFORM_SPECS[platform].approvedField] = patch.approved;
+  }
+
+  if (Object.keys(data).length === 0) return;
+  await client.collection(COLLECTIONS.posts).update(id, data);
+}
+
 export async function replaceTemplateHtml(id: string, rawHtml: string): Promise<void> {
   const client = await requireAdmin();
   await client.collection(COLLECTIONS.templates).update(id, { raw_html: rawHtml });
@@ -212,7 +240,38 @@ export function toPostSummary(record: RecordModel): PostSummary {
     hasAsset: Boolean(record.asset),
     hasThumbnail: Boolean(record.thumbnail),
     created: String(record.created ?? ''),
+    captions: readCaptions(record),
+    approvals: readApprovals(record),
+    // The stored filenames, in the order they were uploaded, which is slide
+    // order alternating portrait and wide.
+    imageNames: Array.isArray(record.images) ? record.images.map(String) : [],
   };
+}
+
+/**
+ * The four captions off a record.
+ *
+ * A post saved before this existed has none, so each falls back to the single
+ * caption it does have. That is better than four empty tabs on old history.
+ */
+function readCaptions(record: RecordModel): PlatformCaptions {
+  const fallback = normalizeNewlines(record.caption_text);
+  const out = emptyCaptions();
+
+  for (const platform of PLATFORMS) {
+    const stored = normalizeNewlines(record[PLATFORM_SPECS[platform].captionField]);
+    out[platform] = stored || fallback;
+  }
+
+  return out;
+}
+
+function readApprovals(record: RecordModel): Record<Platform, boolean> {
+  const out = {} as Record<Platform, boolean>;
+  for (const platform of PLATFORMS) {
+    out[platform] = Boolean(record[PLATFORM_SPECS[platform].approvedField]);
+  }
+  return out;
 }
 
 export interface NewPost {
@@ -229,6 +288,10 @@ export interface NewPost {
   hashtags: string[];
   /** Single image posts: the Google Labs Flow prompt. Empty for carousels. */
   image_prompt: string;
+  /** One caption per network. */
+  captions: PlatformCaptions;
+  /** Every slide as a picture, for the networks that post images. */
+  images?: SlideImage[];
   /**
    * The rendered carousel. Absent on a single image post, which has no file
    * until a picture is uploaded onto it.
@@ -261,6 +324,24 @@ export async function savePost(entry: NewPost): Promise<string> {
   form.append('file_name', entry.file_name);
   form.append('hashtags', JSON.stringify(entry.hashtags));
   form.append('image_prompt', entry.image_prompt);
+
+  for (const platform of PLATFORMS) {
+    form.append(PLATFORM_SPECS[platform].captionField, entry.captions[platform] ?? '');
+  }
+
+  // Named by slide and shape so the preview can ask for "slide 3, wide"
+  // without depending on the order PocketBase hands them back in.
+  //
+  // Underscores rather than hyphens because PocketBase slugifies a filename on
+  // upload and turns hyphens into underscores, then appends a random suffix.
+  // Uploading the name it is going to store anyway keeps the two ends agreeing.
+  for (const image of entry.images ?? []) {
+    form.append(
+      'images',
+      new Blob([new Uint8Array(image.buffer)], { type: 'image/jpeg' }),
+      `slide_${String(image.slide).padStart(2, '0')}_${image.shape}.jpg`,
+    );
+  }
 
   if (entry.asset) {
     form.append(

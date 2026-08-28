@@ -1,4 +1,4 @@
-import { renderSlides } from './chromium';
+import { renderSlides, type SlideImage } from './chromium';
 import { generateContentPayload } from './gemini';
 import {
   describePocketBaseError,
@@ -9,6 +9,7 @@ import {
   savePost,
 } from './pocketbase';
 import { renderTemplate } from './render';
+import { emptyCaptions, type PlatformCaptions } from './platforms';
 import { stripEmojis } from './sanitize';
 import { prepareTemplateAssets } from './template-assets';
 import { templateProblem } from './template-html';
@@ -220,6 +221,7 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
       projectTitle,
       hashtags: payload.hashtags,
       imagePrompt: payload.image_prompt,
+      captions: payload.captions,
       templateKey: 'user_image',
       templateName: 'Uploaded image',
       slideCount: 1,
@@ -242,7 +244,7 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
   );
 
   // Phase 4: render through headless Chromium.
-  const { asset, thumbnail, overflowingSlides } = await renderSlides(html, input.postMode);
+  const { asset, thumbnail, images, overflowingSlides } = await renderSlides(html, input.postMode);
 
   // The count comes from the finished PDF, not from what the model intended.
   // A design that renders as one page of source code gets this far looking
@@ -302,6 +304,8 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
     projectTitle,
     hashtags: payload.hashtags,
     imagePrompt: '',
+    captions: payload.captions,
+    images,
     templateKey: template.template_key,
     templateName: template.template_name,
     slideCount: asset.slideCount,
@@ -326,6 +330,8 @@ async function finish(args: {
   projectTitle: string;
   hashtags: string[];
   imagePrompt: string;
+  captions: PlatformCaptions;
+  images?: SlideImage[];
   templateKey: string;
   templateName: string;
   slideCount: number;
@@ -351,6 +357,8 @@ async function finish(args: {
       file_name: args.fileName,
       hashtags: args.hashtags,
       image_prompt: args.imagePrompt,
+      captions: args.captions,
+      images: args.images,
       asset: args.asset,
       thumbnail: args.thumbnail,
     });

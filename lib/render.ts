@@ -1,6 +1,7 @@
 import Handlebars from 'handlebars';
 
-import { BRAND, logoDataUri } from './brand';
+import { BRAND } from './brand';
+import { logoDataUri } from './logo';
 
 import { commentKeyword, stripEmojis, stripEmojisDeep } from './sanitize';
 import type { GeneratedPayload, HtmlTemplate, SlideRole } from './types';

@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { config } from './config';
+import { PLATFORMS, PLATFORM_SPECS, type Platform, type PlatformCaptions } from './platforms';
 import { commentKeyword, stripEmojis } from './sanitize';
 import type {
   GeneratedPayload,
@@ -10,7 +11,7 @@ import type {
 } from './types';
 
 export const GEMINI_SYSTEM_PROMPT = `
-You are an expert technical content writer and software architect. Your job is to analyze codebases or project descriptions and create professional, clear, and engaging LinkedIn posts.
+You are an expert technical content writer and software architect. Your job is to analyze codebases or project descriptions and create professional, clear, and engaging posts for LinkedIn, X, Facebook and Instagram.
 
 CRITICAL FORMATTING RULES:
 1. Tone: Professional, authoritative, yet written in simple language that is easy for any business reader or engineer to understand without jargon overload.
@@ -23,7 +24,13 @@ CRITICAL FORMATTING RULES:
      comment_keyword the slides use, in the form "Comment WORD and I will send
      you the full project outline and the Claude Code prompt to build your
      own." Then the hashtags on the final line.
-4. Slide Content: Return structured JSON matching the requested template schema, maintaining clean, professional typography and zero emojis.
+4. Multi-Platform Generation: write a DISTINCT caption for each network. Not one
+   caption pasted four times and not the same caption truncated: a LinkedIn post
+   and an X post are different pieces of writing. Each network's brief is given
+   with the request.
+5. Single-Platform Regeneration: when asked to redo one platform, rewrite only
+   that platform's caption and return nothing else.
+6. Slide Content: Return structured JSON matching the requested template schema, maintaining clean, professional typography and zero emojis.
 `;
 
 /**
@@ -111,6 +118,18 @@ const RESPONSE_SCHEMA = {
       type: Type.STRING,
       description: 'One supporting line under the title. Twelve words maximum.',
     },
+    captions: {
+      type: Type.OBJECT,
+      description:
+        'One caption per network, each written for that network rather than copied between them.',
+      properties: {
+        linkedin: { type: Type.STRING, description: PLATFORM_SPECS.linkedin.brief },
+        x: { type: Type.STRING, description: PLATFORM_SPECS.x.brief },
+        facebook: { type: Type.STRING, description: PLATFORM_SPECS.facebook.brief },
+        instagram: { type: Type.STRING, description: PLATFORM_SPECS.instagram.brief },
+      },
+      required: ['linkedin', 'x', 'facebook', 'instagram'],
+    },
     comment_keyword: {
       type: Type.STRING,
       description:
@@ -177,6 +196,7 @@ const RESPONSE_SCHEMA = {
     'hashtags',
     'image_prompt',
     'comment_keyword',
+    'captions',
   ],
 } as const;
 
@@ -187,6 +207,40 @@ function client(): GoogleGenAI {
     cachedClient = new GoogleGenAI({ apiKey: config.geminiApiKey });
   }
   return cachedClient;
+}
+
+/**
+ * The four captions, cleaned and held to their limits.
+ *
+ * X is the one network whose limit rejects rather than truncates, so a caption
+ * over it is trimmed at a word boundary here rather than failing at post time.
+ * A platform the model skipped falls back to the LinkedIn caption, because a
+ * tab with something in it that you can redo beats an empty one.
+ */
+function coerceCaptions(raw: unknown, fallback: string): PlatformCaptions {
+  const record = (raw ?? {}) as Record<string, unknown>;
+  const out = {} as PlatformCaptions;
+
+  for (const platform of PLATFORMS) {
+    const { limit } = PLATFORM_SPECS[platform];
+    let text = stripEmojis(String(record[platform] ?? '')).trim() || fallback;
+
+    if (text.length > limit) {
+      const cut = text.slice(0, limit);
+      const lastSpace = cut.lastIndexOf(' ');
+      text = (lastSpace > limit * 0.6 ? cut.slice(0, lastSpace) : cut).trim();
+    }
+
+    out[platform] = text;
+  }
+
+  return out;
+}
+
+function platformBriefs(): string {
+  return PLATFORMS.map(
+    (platform) => `- ${PLATFORM_SPECS[platform].label}: ${PLATFORM_SPECS[platform].brief}`,
+  ).join('\n');
 }
 
 function templateCatalogue(templates: HtmlTemplate[]): string {
@@ -228,6 +282,9 @@ function buildUserPrompt(args: {
           'slide that overruns, and a slide with nothing on it cannot be fixed that way.',
           'Return an empty string for image_prompt.',
         ].join('\n'),
+    '',
+    'CAPTIONS. Write one for each network, to these briefs:',
+    platformBriefs(),
     '',
     'Never invent features the source material does not support.',
     '',
@@ -331,6 +388,7 @@ export async function generateContentPayload(args: {
       hashtags: coerceHashtags(parsed.hashtags),
       image_prompt: imagePrompt,
       comment_keyword: keyword,
+      captions: coerceCaptions(parsed.captions, caption),
     };
   }
 
@@ -353,7 +411,65 @@ export async function generateContentPayload(args: {
     hashtags: coerceHashtags(parsed.hashtags),
     image_prompt: '',
     comment_keyword: keyword,
+    captions: coerceCaptions(parsed.captions, caption),
   };
+}
+
+/**
+ * Rewrites one platform's caption and nothing else.
+ *
+ * The whole value of a redo button is that it cannot touch the other three, so
+ * this asks for a single string rather than the full payload: there is nothing
+ * in the response that could overwrite anything else even if the model tried.
+ * It reuses the same system prompt, so a redo is written to the same rules as
+ * the original rather than to a second set that can drift from them.
+ */
+export async function regenerateCaption(args: {
+  platform: Platform;
+  contextString: string;
+  previous: string;
+}): Promise<string> {
+  const spec = PLATFORM_SPECS[args.platform];
+
+  const response = await client().models.generateContent({
+    model: config.geminiModel,
+    contents: [
+      `Rewrite the ${spec.label} caption for this project, and return nothing else.`,
+      '',
+      `BRIEF: ${spec.brief}`,
+      '',
+      'It must be a genuinely different take rather than the same caption reworded:',
+      'a different opening, a different angle on what matters.',
+      '',
+      'THE CAPTION BEING REPLACED:',
+      args.previous || '(there was none)',
+      '',
+      'SOURCE MATERIAL:',
+      args.contextString,
+    ].join('\n'),
+    config: {
+      systemInstruction: GEMINI_SYSTEM_PROMPT,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: { caption: { type: Type.STRING, description: spec.brief } },
+        required: ['caption'],
+      } as never,
+    },
+  });
+
+  const text = response.text;
+  if (!text) throw new Error('Gemini returned an empty response.');
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error(`Gemini returned output that is not valid JSON: ${text.slice(0, 200)}`);
+  }
+
+  const rewritten = coerceCaptions({ [args.platform]: parsed.caption }, args.previous);
+  return rewritten[args.platform];
 }
 
 function coerceHashtags(raw: unknown): string[] {

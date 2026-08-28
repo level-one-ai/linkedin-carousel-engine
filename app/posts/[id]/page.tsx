@@ -13,12 +13,12 @@ import { formatDate } from '@/components/PostCard';
 import type { PostSummary } from '@/lib/types';
 
 // Both reach for browser only APIs, so neither can be server-rendered.
-const LinkedInPreview = dynamic(() => import('@/components/LinkedInPreview'), {
+const PlatformWorkspace = dynamic(() => import('@/components/PlatformWorkspace'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center gap-2 py-24 text-fluid-sm text-muted">
       <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-      Building preview
+      Building previews
     </div>
   ),
 });
@@ -128,88 +128,73 @@ export default function PostPage() {
               ) : null}
             </header>
 
-            <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
-              <section className="lg:sticky lg:top-10">
-                <p className="mb-3 text-fluid-xs uppercase tracking-widest text-muted">
-                  How it will look
-                </p>
-                <LinkedInPreview post={post} fileUrl={fileUrl} />
-              </section>
+            <PlatformWorkspace post={post} />
 
-              <section className="space-y-4">
+            <div className="mt-8 grid items-start gap-6 lg:grid-cols-2">
+              {post.hashtags.length > 0 ? (
                 <div className="card">
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <h2 className="text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
-                      Caption
-                    </h2>
-                    <CopyButton text={post.caption_text} label="Copy text" />
+                  <h2 className="mb-3 text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
+                    Hashtags
+                  </h2>
+                  <div className="flex flex-wrap gap-2">
+                    {post.hashtags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full border border-line bg-white/70 px-3 py-1 text-fluid-xs text-muted"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                   </div>
+                </div>
+              ) : null}
 
-                  <p className="whitespace-pre-line text-fluid-sm leading-relaxed text-foreground/90">
-                    {post.caption_text}
-                  </p>
+              {post.post_mode === 'image' ? (
+                <ImagePromptPanel post={post} onUploaded={setPost} />
+              ) : null}
 
-                  {post.hashtags.length > 0 ? (
-                    <div className="mt-5 flex flex-wrap gap-2 border-t border-line pt-4">
-                      {post.hashtags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full border border-line bg-white/70 px-3 py-1 text-fluid-xs text-muted"
-                        >
-                          {tag}
-                        </span>
-                      ))}
+              {isCarousel && post.hasAsset && fileUrl ? (
+                <div className="card">
+                  <button
+                    type="button"
+                    onClick={() => setSlidesOpen((open) => !open)}
+                    aria-expanded={slidesOpen}
+                    className="flex w-full items-center justify-between gap-3 text-left"
+                  >
+                    <span className="text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
+                      Every slide
+                      <span className="ml-2 font-normal normal-case tracking-normal text-muted">
+                        ({post.slide_count})
+                      </span>
+                    </span>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-muted transition-transform ${
+                        slidesOpen ? 'rotate-180' : ''
+                      }`}
+                      aria-hidden
+                    />
+                  </button>
+
+                  {slidesOpen ? (
+                    <div className="mt-4">
+                      <PdfViewer fileUrl={fileUrl} downloadUrl={downloadUrl} />
                     </div>
                   ) : null}
                 </div>
+              ) : null}
 
-                {post.post_mode === 'image' ? (
-                  <ImagePromptPanel post={post} onUploaded={setPost} />
-                ) : null}
-
-                {isCarousel && post.hasAsset && fileUrl ? (
-                  <div className="card">
-                    <button
-                      type="button"
-                      onClick={() => setSlidesOpen((open) => !open)}
-                      aria-expanded={slidesOpen}
-                      className="flex w-full items-center justify-between gap-3 text-left"
-                    >
-                      <span className="text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
-                        Every slide
-                        <span className="ml-2 font-normal normal-case tracking-normal text-muted">
-                          ({post.slide_count})
-                        </span>
-                      </span>
-                      <ChevronDown
-                        className={`h-4 w-4 shrink-0 text-muted transition-transform ${
-                          slidesOpen ? 'rotate-180' : ''
-                        }`}
-                        aria-hidden
-                      />
-                    </button>
-
-                    {slidesOpen ? (
-                      <div className="mt-4">
-                        <PdfViewer fileUrl={fileUrl} downloadUrl={downloadUrl} />
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                {isCarousel && !post.hasAsset ? (
-                  <div className="card">
-                    <p className="text-fluid-sm font-semibold text-foreground">
-                      No slides stored for this post
-                    </p>
-                    <p className="mt-2 text-fluid-sm text-muted">
-                      The caption was saved but the file was not. Generate it again to get the
-                      slides.
-                    </p>
-                  </div>
-                ) : null}
-              </section>
+              {isCarousel && !post.hasAsset ? (
+                <div className="card">
+                  <p className="text-fluid-sm font-semibold text-foreground">
+                    No slides stored for this post
+                  </p>
+                  <p className="mt-2 text-fluid-sm text-muted">
+                    The caption was saved but the file was not. Generate it again to get the slides.
+                  </p>
+                </div>
+              ) : null}
             </div>
+
           </motion.div>
         ) : null}
       </div>

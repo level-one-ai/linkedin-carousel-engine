@@ -101,6 +101,24 @@ const COLLECTIONS = [
       // Single image posts: the prompt to paste into Google Labs Flow. Kept on
       // the record so it can be re-run months later without regenerating.
       { name: 'image_prompt', type: 'text', required: false, max: 4000 },
+      // One caption per network. caption_text above stays as the LinkedIn one
+      // so posts saved before this existed still read correctly.
+      { name: 'linkedin_caption', type: 'text', required: false, max: 6000 },
+      { name: 'x_caption', type: 'text', required: false, max: 1000 },
+      { name: 'facebook_caption', type: 'text', required: false, max: 6000 },
+      { name: 'instagram_caption', type: 'text', required: false, max: 6000 },
+      // Which networks you approved. Nothing is sent without one of these.
+      { name: 'linkedin_approved', type: 'bool' },
+      { name: 'x_approved', type: 'bool' },
+      { name: 'facebook_approved', type: 'bool' },
+      { name: 'instagram_approved', type: 'bool' },
+      // Filled in when publishing is wired up, so the record can be matched
+      // back to the live post for analytics and comments.
+      { name: 'linkedin_post_id', type: 'text', required: false },
+      { name: 'x_post_id', type: 'text', required: false },
+      { name: 'facebook_post_id', type: 'text', required: false },
+      { name: 'instagram_post_id', type: 'text', required: false },
+      { name: 'target_profile_type', type: 'text', required: false },
       // The carousel PDF or the single PNG. This is what makes a post
       // reopenable rather than a one-time download.
       {
@@ -119,6 +137,16 @@ const COLLECTIONS = [
         maxSize: 2097152,
         protected: true,
       },
+      // Every slide as a picture, in both shapes: the 4:5 slide for Facebook
+      // and Instagram and a 16:9 crop for X. Two per slide, so a 10 slide
+      // carousel needs 20 slots.
+      {
+        name: 'images',
+        type: 'file',
+        maxSelect: 40,
+        maxSize: 3145728,
+        protected: true,
+      },
       // The history grid sorts on `created`. Without these fields declared,
       // that sort is a 400 on the listing rather than an empty page.
       { name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
@@ -135,6 +163,57 @@ const COLLECTIONS = [
       { name: 'details', type: 'text', required: false, max: 5000 },
     ],
     indexes: [],
+  },
+
+  // The three collections below are created now and written to later, when
+  // publishing and the giveaway engine are wired up to Postiz. Creating them
+  // with the rest costs nothing and means that work adds no migration to a
+  // database already holding your posts.
+  {
+    name: 'post_analytics',
+    type: 'base',
+    fields: [
+      { name: 'post_id', type: 'text', required: true },
+      { name: 'platform', type: 'text', required: true },
+      { name: 'post_url', type: 'text', required: false },
+      { name: 'impressions_count', type: 'number', required: false },
+      { name: 'views_count', type: 'number', required: false },
+      { name: 'likes_count', type: 'number', required: false },
+      { name: 'comments_count', type: 'number', required: false },
+      { name: 'shares_count', type: 'number', required: false },
+      { name: 'last_updated', type: 'date', required: false },
+    ],
+    // One row per post per network, refreshed rather than appended, so a
+    // chart is not drawn from duplicates.
+    indexes: [
+      'CREATE UNIQUE INDEX idx_post_analytics_post_platform ON post_analytics (post_id, platform)',
+    ],
+  },
+  {
+    name: 'hosted_prompts',
+    type: 'base',
+    fields: [
+      { name: 'trigger_keyword', type: 'text', required: true },
+      { name: 'generated_prompt', type: 'text', required: true, max: 20000 },
+      { name: 'source_post_id', type: 'text', required: false },
+      { name: 'views_count', type: 'number', required: false },
+    ],
+    indexes: [],
+  },
+  {
+    name: 'giveaway_logs',
+    type: 'base',
+    fields: [
+      { name: 'platform', type: 'text', required: true },
+      { name: 'commenter_handle', type: 'text', required: true },
+      { name: 'prompt_id', type: 'text', required: false },
+      { name: 'delivered_at', type: 'date', required: false },
+    ],
+    // A commenter gets the prompt once per post, not once per time the
+    // webhook redelivers the same comment.
+    indexes: [
+      'CREATE UNIQUE INDEX idx_giveaway_once ON giveaway_logs (platform, commenter_handle, prompt_id)',
+    ],
   },
 ];
 

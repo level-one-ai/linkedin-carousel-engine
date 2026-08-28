@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
-import { chromium, type Browser } from 'playwright-core';
+import { chromium, type Browser, type Page } from 'playwright-core';
 
 import type { PostMode } from './types';
 
@@ -164,10 +164,25 @@ async function launch(): Promise<Browser> {
   }
 }
 
+/**
+ * One slide as a picture, in one of the two shapes the networks want.
+ *
+ * "portrait" is the slide as designed, 4:5, which Facebook and Instagram post
+ * as it is. "wide" is the top of the same slide cropped to 16:9 for X, whose
+ * timeline puts bars down both sides of a 4:5 image.
+ */
+export interface SlideImage {
+  slide: number;
+  shape: 'portrait' | 'wide';
+  buffer: Buffer;
+}
+
 export interface RenderResult {
   asset: RenderedAsset;
   /** Slide one as a JPEG, for the history cards. */
   thumbnail: Buffer;
+  /** Every slide as a picture, for the networks that post images. Carousels only. */
+  images: SlideImage[];
   /** Slides that could not be made to fit even at the minimum zoom. */
   overflowingSlides: number[];
 }
@@ -227,6 +242,68 @@ async function fitSlides(
  * Both come out of one page load on purpose: starting Chromium twice for the
  * same HTML would roughly double the slowest step in the pipeline.
  */
+/**
+ * Every slide as a picture, for the networks that post images rather than a
+ * document.
+ *
+ * LinkedIn takes the PDF. Facebook and Instagram take the slide as it is, at
+ * its native 4:5. X is the exception: a 4:5 image is shown in the timeline with
+ * bars down both sides, so each slide is cropped to 16:9 from the top, where
+ * the heading is.
+ *
+ * JPEG rather than PNG. Eight slides times two sizes is sixteen images on one
+ * record, and a slide is photographic enough — smoke gradients, a photograph on
+ * the portrait design — that lossless costs several megabytes for no visible
+ * gain.
+ */
+async function captureSlideImages(page: Page): Promise<SlideImage[]> {
+  const slides = page.locator('.slide');
+  const count = await slides.count();
+  const images: SlideImage[] = [];
+
+  for (let index = 0; index < count; index += 1) {
+    const slide = slides.nth(index);
+
+    images.push({
+      slide: index + 1,
+      shape: 'portrait',
+      buffer: Buffer.from(
+        await slide.screenshot({ type: 'jpeg', quality: SLIDE_IMAGE_QUALITY, scale: 'css' }),
+      ),
+    });
+
+    const box = await slide.boundingBox();
+    if (!box) continue;
+
+    // Cropped from the middle rather than the top. The designs do not agree on
+    // where the content sits — cream centres its cover, noir hangs it from the
+    // top, sand anchors it to the bottom — so taking the top band gives an
+    // empty rectangle on some of them. The middle is the one band that holds
+    // something on all six.
+    const wideHeight = Math.round((box.width * 9) / 16);
+
+    images.push({
+      slide: index + 1,
+      shape: 'wide',
+      buffer: Buffer.from(
+        await page.screenshot({
+          type: 'jpeg',
+          quality: SLIDE_IMAGE_QUALITY,
+          scale: 'css',
+          clip: {
+            x: box.x,
+            y: box.y + Math.max(0, Math.round((box.height - wideHeight) / 2)),
+            width: box.width,
+            height: wideHeight,
+          },
+        }),
+      ),
+    });
+  }
+
+  return images;
+}
+
 export async function renderSlides(html: string, postMode: PostMode): Promise<RenderResult> {
   const browser = await launch();
 
@@ -268,9 +345,15 @@ export async function renderSlides(html: string, postMode: PostMode): Promise<Re
       return {
         asset: { buffer: shot, mimeType: 'image/png', extension: 'png', slideCount: 1 },
         thumbnail,
+        images: [],
         overflowingSlides,
       };
     }
+
+    // The image set for the networks that take pictures rather than a
+    // document. Taken here, from the page that is already open and already
+    // fitted, so a generation launches one browser rather than two.
+    const images = await captureSlideImages(page);
 
     // Chromium only applies @media print rules, and the @page size, when told
     // to emulate print. Gotenberg did this for us; here it has to be said.
@@ -296,6 +379,7 @@ export async function renderSlides(html: string, postMode: PostMode): Promise<Re
         slideCount: countPages(pdf),
       },
       thumbnail,
+      images,
       overflowingSlides,
     };
   } finally {

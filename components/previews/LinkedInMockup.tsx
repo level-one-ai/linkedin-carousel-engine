@@ -7,6 +7,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 import type { PostSummary } from '@/lib/types';
+import { AUTHOR } from './shared';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -183,11 +184,14 @@ function CarouselAttachment({ fileUrl, title }: { fileUrl: string; title: string
 
 const ACTIONS = ['Like', 'Comment', 'Repost', 'Send'];
 
-export default function LinkedInPreview({
+export default function LinkedInMockup({
   post,
+  caption,
   fileUrl,
 }: {
   post: PostSummary;
+  /** The LinkedIn caption, which a redo can change without a page reload. */
+  caption: string;
   /** Where the stored asset is served from, or null while none exists. */
   fileUrl: string | null;
 }) {
@@ -195,9 +199,9 @@ export default function LinkedInPreview({
 
   return (
     <article className="mx-auto w-full max-w-[555px] overflow-hidden rounded-lg border border-[rgba(0,0,0,0.08)] bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.06)]">
-      <AuthorHeader name="Level One" tagline="AI systems and automation for growing businesses" />
+      <AuthorHeader name={AUTHOR.name} tagline={AUTHOR.tagline} />
 
-      <Caption text={post.caption_text} />
+      <Caption text={caption} />
 
       {!fileUrl ? (
         <div className="flex flex-col items-center justify-center gap-2 border-y border-[rgba(0,0,0,0.08)] bg-[#f4f2ee] py-20 text-center">

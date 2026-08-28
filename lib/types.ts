@@ -1,3 +1,4 @@
+import type { Platform, PlatformCaptions } from './platforms';
 export type PostMode = 'carousel' | 'image';
 export type InputType = 'zip' | 'text';
 
@@ -35,6 +36,8 @@ export interface GeneratedPayload {
   image_prompt: string;
   /** The one word readers are asked to comment, printed on the last slide. */
   comment_keyword: string;
+  /** One caption per network, each written for that network. */
+  captions: PlatformCaptions;
 }
 
 export interface HtmlTemplate {
@@ -70,6 +73,12 @@ export interface PostSummary {
   /** The Google Labs Flow prompt, on single image posts. */
   image_prompt: string;
   hasAsset: boolean;
+  /** One caption per network, falling back to caption_text on older posts. */
+  captions: PlatformCaptions;
+  /** Which networks are approved for posting. */
+  approvals: Record<Platform, boolean>;
+  /** Stored slide image filenames, as slide-03-wide.jpg. */
+  imageNames: string[];
   hasThumbnail: boolean;
   created: string;
 }

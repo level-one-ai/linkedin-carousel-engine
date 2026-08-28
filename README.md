@@ -13,13 +13,40 @@ hosted PocketBase stores the slide designs and the history.
 
 ---
 
-## The two screens that matter
+## The screens that matter
 
 The front door has two buttons.
 
 - **Create New Post** takes a `.zip` or a description and a **Type**: Carousel or Single Image.
-- **Previous Posts** is every post you have made, as cards. Click one and it opens as a LinkedIn
-  post preview: the real caption truncation, the carousel you can page through, the action row.
+- **Previous Posts** is every post you have made, as cards. Click one and it opens as a four tab
+  workspace, one per network.
+
+### Four networks, four captions, four previews
+
+One generation writes four captions — LinkedIn, X, Facebook, Instagram — each to that network's own
+brief, because a LinkedIn post and an X post are different pieces of writing rather than one
+truncated. Each tab draws the post inside that network's own chrome, with that network's truncation
+and image treatment: LinkedIn as a document carousel, X at 16:9 with its 280 character count,
+Instagram square-ish with the caption cut after one line, Facebook with a generous fold.
+
+Each tab has an **approval checkbox** and a **Redo this post** button. Redo rewrites that one
+caption and writes that one field — verified: with two networks approved, a redo of X changed
+exactly one field of the whole record.
+
+The image sets come from the same render as the PDF, so a generation still launches one browser:
+the 4:5 slide for Facebook and Instagram, and a 16:9 crop from the middle of each slide for X.
+
+**Publishing is not wired up yet.** The database tables and the environment variables exist, and it
+will go through a self-hosted Postiz so the four networks are one integration. See `.env.example`
+for what that needs, including the two platform approvals nobody can grant themselves.
+
+### Making a new design
+
+`/templates/new` takes a description and a piece of HTML to take the look from, and Gemini writes a
+full eight slide design. It is **rendered before it is offered** — a design that cannot produce
+eight pages is handed back with the reason rather than added to the picker, which is the failure
+this system has already had. On success it is saved to PocketBase, so it is usable immediately, and
+committed to `templates/` so it is in git.
 
 ### The two types
 

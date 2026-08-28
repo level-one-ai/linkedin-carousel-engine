@@ -47,6 +47,36 @@ export const config = {
   get maxUploadMb() {
     return Number(optional('MAX_UPLOAD_MB', '50'));
   },
+
+  /**
+   * Committing a generated slide design back to the repository. Needs only
+   * `contents: write` on the one repo — no other scope is used.
+   */
+  get githubToken() {
+    return required('GITHUB_TOKEN');
+  },
+  get githubRepo() {
+    return required('GITHUB_REPO');
+  },
+  get githubBranch() {
+    return optional('GITHUB_BRANCH', 'claude/linkedin-carousel-generator-gg73ng');
+  },
+
+  /**
+   * Publishing, analytics and the comment inbox, through a self-hosted Postiz.
+   * Read but not yet used: the routes that will call it are not built, and an
+   * empty value here is what the health check reports as "not connected".
+   */
+  get postizUrl() {
+    return optional('POSTIZ_URL', '').replace(/\/$/, '');
+  },
+  get postizApiKey() {
+    return optional('POSTIZ_API_KEY', '');
+  },
+  /** Where a hosted prompt's share link points. */
+  get publicBaseUrl() {
+    return optional('PUBLIC_BASE_URL', '').replace(/\/$/, '');
+  },
 };
 
 /**
@@ -69,5 +99,11 @@ export function environmentReport() {
       set: Boolean(process.env.POCKETBASE_ADMIN_PASSWORD),
       required: false,
     },
+    { key: 'GITHUB_TOKEN', set: Boolean(process.env.GITHUB_TOKEN), required: false },
+    { key: 'GITHUB_REPO', set: Boolean(process.env.GITHUB_REPO), required: false },
+    { key: 'GITHUB_BRANCH', set: Boolean(process.env.GITHUB_BRANCH), required: false },
+    { key: 'POSTIZ_URL', set: Boolean(process.env.POSTIZ_URL), required: false },
+    { key: 'POSTIZ_API_KEY', set: Boolean(process.env.POSTIZ_API_KEY), required: false },
+    { key: 'PUBLIC_BASE_URL', set: Boolean(process.env.PUBLIC_BASE_URL), required: false },
   ];
 }

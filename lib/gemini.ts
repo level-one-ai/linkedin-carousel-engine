@@ -477,3 +477,118 @@ function coerceHashtags(raw: unknown): string[] {
     ? raw.map((tag) => stripEmojis(String(tag)).trim()).filter(Boolean)
     : [];
 }
+
+/**
+ * Writes a new slide design from a description and a piece of HTML to work
+ * from.
+ *
+ * The model is given the blueprint it has to satisfy rather than being asked
+ * for "a template", because a design that misses the loop renders one page of
+ * its own source code — which is a failure this system has already had, and
+ * the reason the caller renders the result before offering it.
+ *
+ * The sample HTML is a reference for look, not a base to edit. Handing back a
+ * lightly modified copy of someone's landing page produces something that is
+ * not a 1080x1350 slide deck.
+ */
+export async function generateTemplateHtml(args: {
+  description: string;
+  sampleHtml: string;
+}): Promise<{ template_key: string; template_name: string; category: string; raw_html: string }> {
+  const response = await client().models.generateContent({
+    model: config.geminiModel,
+    contents: [
+      'Write a complete Handlebars slide design for an 8 slide LinkedIn carousel.',
+      '',
+      'IT MUST HAVE, or it cannot render:',
+      '- <meta charset="utf-8" /> and a <style> block.',
+      '- @page { size: 1080px 1350px; margin: 0; }',
+      '- A .slide rule that is exactly 1080px by 1350px, with page-break-after:',
+      '  always, break-after: page, and overflow: hidden.',
+      '- html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }',
+      '  without which Chromium drops every background colour when it prints.',
+      '- {{#each slides}}<section class="slide slide-{{role}}"> ... </section>{{/each}}',
+      '  wrapping the whole body. One section per slide, nothing outside the loop.',
+      '',
+      'INSIDE THE LOOP you have: heading, body, bullets, kicker, role, number,',
+      'isFirst, isLast, and one boolean per role: isHook, isProblem, isPoint,',
+      'isSummary, isCta. Outside it, with ../ : title, subtitle, totalLabel,',
+      'wordmark, brandName, author, commentKeyword, logoDataUri.',
+      '',
+      'BRANCH on the role so the cover, the middle slides, the summary and the',
+      'sign off do not look the same: {{#if isHook}} ... {{else if isCta}} ...',
+      '{{else}} ... {{/if}}. The cover shows <img src="{{../logoDataUri}}">, the',
+      'heading and the body. The sign off asks for a comment using',
+      '{{../commentKeyword}}.',
+      '',
+      'RULES: self contained — no external stylesheet, font or image, because the',
+      'page is rendered with no origin and anything fetched silently vanishes.',
+      'Fonts must come from "Helvetica Neue", Helvetica, Arial, "Liberation Sans"',
+      'or Georgia, "Times New Roman", "Liberation Serif". No emojis anywhere. Type',
+      'large enough to read on a phone: headings 60px and up, body 28px and up.',
+      '',
+      'WHAT IT SHOULD LOOK LIKE:',
+      args.description,
+      '',
+      'HTML TO TAKE THE LOOK FROM. Use its colours, spacing and type as a',
+      'reference. Do NOT edit it into a template — write a new one that feels',
+      'like it:',
+      args.sampleHtml.slice(0, 12000),
+    ].join('\n'),
+    config: {
+      systemInstruction: GEMINI_SYSTEM_PROMPT,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          template_key: {
+            type: Type.STRING,
+            description:
+              'Lowercase key with underscores, starting level_one_, for example ' +
+              'level_one_harbour. Two or three words.',
+          },
+          template_name: {
+            type: Type.STRING,
+            description: 'Friendly name for the dropdown, for example "Level One Harbour".',
+          },
+          category: {
+            type: Type.STRING,
+            description:
+              'A sentence describing what this design suits. The model reads this to choose ' +
+              'between designs, so describe the use rather than the colours alone.',
+          },
+          raw_html: {
+            type: Type.STRING,
+            description: 'The complete template, ready to render. No commentary around it.',
+          },
+        },
+        required: ['template_key', 'template_name', 'category', 'raw_html'],
+      } as never,
+    },
+  });
+
+  const text = response.text;
+  if (!text) throw new Error('Gemini returned an empty response.');
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error(`Gemini returned output that is not valid JSON: ${text.slice(0, 300)}`);
+  }
+
+  const key = String(parsed.template_key ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  return {
+    template_key: key || `level_one_${Date.now().toString(36)}`,
+    template_name: stripEmojis(String(parsed.template_name ?? '')).trim() || 'New design',
+    category: stripEmojis(String(parsed.category ?? '')).trim() || 'A new slide design.',
+    // NOT stripped of emojis as a whole: it is HTML, and the sanitiser walks
+    // text. Emojis in a template would be the model disobeying the system
+    // prompt, and the render check below is what actually gates it.
+    raw_html: String(parsed.raw_html ?? ''),
+  };
+}

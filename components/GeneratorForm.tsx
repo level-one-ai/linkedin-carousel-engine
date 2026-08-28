@@ -268,7 +268,8 @@ export default function GeneratorForm({ onBusyChange }: { onBusyChange?: (busy: 
             {/* A single image post uses no slide design, so the picker would
                 be a control that changes nothing. */}
             {postMode === 'carousel' ? (
-              <label className="mt-4 block text-fluid-xs uppercase tracking-widest text-muted">
+              <div className="mt-4">
+              <label className="block text-fluid-xs uppercase tracking-widest text-muted">
                 Slide design
                 <select
                   value={templateKey}
@@ -283,6 +284,14 @@ export default function GeneratorForm({ onBusyChange }: { onBusyChange?: (busy: 
                   ))}
                 </select>
               </label>
+
+              <a
+                href="/templates/new"
+                className="mt-2 inline-block text-fluid-xs text-muted underline-offset-4 transition hover:text-foreground hover:underline"
+              >
+                Make a new design
+              </a>
+              </div>
             ) : (
               <p className="mt-4 rounded-2xl border border-line bg-white/50 px-4 py-3 text-fluid-xs text-muted">
                 You will get the caption and an image prompt to paste into Google Labs Flow. Bring

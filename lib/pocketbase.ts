@@ -163,6 +163,33 @@ export async function updatePlatformField(
   await client.collection(COLLECTIONS.posts).update(id, data);
 }
 
+/**
+ * Stores a newly written design, so it is in the picker immediately.
+ *
+ * The folder is the source of truth for the designs that ship, but a design
+ * generated at runtime cannot be in a folder the running container built from.
+ * PocketBase is what makes it usable before the next deploy; the commit
+ * alongside it is what makes it permanent.
+ */
+export async function saveTemplate(template: {
+  template_key: string;
+  template_name: string;
+  category: string;
+  raw_html: string;
+}): Promise<string> {
+  const client = await requireAdmin();
+  const filter = `template_key="${template.template_key.replace(/"/g, '')}"`;
+
+  try {
+    const existing = await client.collection(COLLECTIONS.templates).getFirstListItem(filter);
+    await client.collection(COLLECTIONS.templates).update(existing.id, template);
+    return existing.id;
+  } catch {
+    const created = await client.collection(COLLECTIONS.templates).create(template);
+    return created.id;
+  }
+}
+
 export async function replaceTemplateHtml(id: string, rawHtml: string): Promise<void> {
   const client = await requireAdmin();
   await client.collection(COLLECTIONS.templates).update(id, { raw_html: rawHtml });

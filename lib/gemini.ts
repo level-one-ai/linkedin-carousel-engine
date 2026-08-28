@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { config } from './config';
-import { stripEmojis } from './sanitize';
+import { commentKeyword, stripEmojis } from './sanitize';
 import type {
   GeneratedPayload,
   HtmlTemplate,
@@ -19,7 +19,10 @@ CRITICAL FORMATTING RULES:
    - Hook: A strong 1-sentence opening statement about the business problem or system integration.
    - Context: 2-3 short sentences explaining how the system works.
    - Key Takeaways: 3 concise bullet points highlighting business or technical value.
-   - Call to Action & Hashtags: A clean sign-off question and professional hashtags.
+   - Call to Action & Hashtags: end with the comment ask, using the same
+     comment_keyword the slides use, in the form "Comment WORD and I will send
+     you the full project outline and the Claude Code prompt to build your
+     own." Then the hashtags on the final line.
 4. Slide Content: Return structured JSON matching the requested template schema, maintaining clean, professional typography and zero emojis.
 `;
 
@@ -54,8 +57,11 @@ not a slide - it is a title. Each of those slides needs BOTH:
 7. role "summary" - A recap. The body says what the reader now knows. The
    bullets are a checklist drawn from slides 3 to 6, one line each, and they
    must read as a list a person could act on.
-8. role "cta" - Ask for the save, the comment and the follow. The body is the
-   reason to do it. Three bullets, one per action. No new information.
+8. role "cta" - The body is the reason to act on the post. Three bullets: save
+   it, share it with whoever on their team needs it, follow for more. Do NOT
+   ask for a comment in these bullets — the slide already carries the comment
+   ask in its own block, using comment_keyword, and saying it twice reads as a
+   mistake. No new information here.
 `;
 
 /**
@@ -104,6 +110,14 @@ const RESPONSE_SCHEMA = {
     project_subtitle: {
       type: Type.STRING,
       description: 'One supporting line under the title. Twelve words maximum.',
+    },
+    comment_keyword: {
+      type: Type.STRING,
+      description:
+        'One memorable word taken from this project, for readers to comment so they can be sent ' +
+        'the build. Letters and hyphens only, no spaces, no punctuation. For example CO-PILOT, ' +
+        'OUTREACH or INGEST. It is printed large on the last slide, so make it specific to this ' +
+        'project rather than generic.',
     },
     image_prompt: {
       type: Type.STRING,
@@ -162,6 +176,7 @@ const RESPONSE_SCHEMA = {
     'slides',
     'hashtags',
     'image_prompt',
+    'comment_keyword',
   ],
 } as const;
 
@@ -300,6 +315,7 @@ export async function generateContentPayload(args: {
   }
 
   const caption = stripEmojis(String(parsed.caption ?? '')).trim();
+  const keyword = commentKeyword(parsed.comment_keyword);
   const imagePrompt = stripEmojis(String(parsed.image_prompt ?? '')).trim();
 
   if (args.postMode === 'image') {
@@ -314,6 +330,7 @@ export async function generateContentPayload(args: {
       slides: [],
       hashtags: coerceHashtags(parsed.hashtags),
       image_prompt: imagePrompt,
+      comment_keyword: keyword,
     };
   }
 
@@ -335,6 +352,7 @@ export async function generateContentPayload(args: {
     slides: slides.slice(0, 10),
     hashtags: coerceHashtags(parsed.hashtags),
     image_prompt: '',
+    comment_keyword: keyword,
   };
 }
 

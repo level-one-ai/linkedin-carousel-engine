@@ -104,12 +104,19 @@ Every carousel is the same shape, and the model is told it slide by slide rather
 | 2 | `problem` | Why it matters, or the common mistake |
 | 3-6 | `point` | One distinct idea, step or architecture point each |
 | 7 | `summary` | A checklist recap |
-| 8 | `cta` | Save, comment, follow |
+| 8 | `cta` | Save, share, follow — and the comment ask |
 
 Templates branch on that role, so a cover, a checklist and a sign off look nothing like the four
 middle slides without the template needing eight hardcoded blocks. Every slide from 2 to 8 carries
 two sentences of body copy **and** three bullets: the schema requires them and the blueprint says so
 per role, because a heading with one line under it is a title, not a slide.
+
+The sign-off slide carries one ask, in its own block: **comment a keyword and get the full project
+outline and the Claude Code prompt to build your own.** The model writes that word from the project
+itself — `CO-PILOT`, `OUTREACH`, `INGEST` — and puts the same word at the end of the caption, so the
+slide and the post ask for the same thing. It is reduced to one printable uppercase word by
+`commentKeyword()` in `lib/sanitize.ts`, both where the model's answer arrives and again where a
+template renders it, because a reader has to type it back exactly.
 
 Six designs: `level_one_cream`, `noir`, `mist`, `sand`, `slate` and `portrait`. Each lays its cover
 out differently — the mark centred and large, a lockup top left, a headline on a rule, the mark bled

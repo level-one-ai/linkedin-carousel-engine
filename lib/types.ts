@@ -33,6 +33,8 @@ export interface GeneratedPayload {
    * Empty for carousels, which make their own picture.
    */
   image_prompt: string;
+  /** The one word readers are asked to comment, printed on the last slide. */
+  comment_keyword: string;
 }
 
 export interface HtmlTemplate {

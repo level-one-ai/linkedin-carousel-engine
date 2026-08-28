@@ -167,6 +167,15 @@
     object-position: right bottom;
   }
 
+  /* The cover puts the photograph in the opposite corner from the sign off,
+     and the footer swaps with it. Two selectors deep so it outranks the rule
+     above rather than depending on order. */
+  .slide-hook.slide-photo > .portrait {
+    right: auto;
+    left: 0;
+    object-position: left bottom;
+  }
+
   .slide-photo > .photo-topbar {
     display: flex;
     align-items: center;
@@ -253,6 +262,13 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: #6b6357;
+  }
+
+  .slide-hook.slide-photo > .photo-foot {
+    left: auto;
+    right: 84px;
+    align-items: flex-end;
+    text-align: right;
   }
 
   .slide-photo > .photo-foot .arrow { flex: none; }

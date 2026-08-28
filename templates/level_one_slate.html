@@ -243,6 +243,7 @@
   .cta-steps {
     list-style: none;
     margin-top: 42px;
+    margin-bottom: 46px;
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -253,6 +254,25 @@
     padding: 18px 40px;
     border: 2px solid rgba(247,245,240,0.22);
     border-radius: 999px;
+  }
+  /* The ask this slide exists for: comment a word, get the build. It replaces
+     a wordmark pill that had nothing to say and, having lost its margin in the
+     cover rework, sat on top of the last action line. */
+  .cta-ask {
+    max-width: 880px;
+    padding: 34px 46px;
+    border-radius: 28px;
+    background: transparent;
+    color: #f7f5f0;
+    border: 2px solid rgba(247,245,240,0.36);
+    font-size: 30px;
+    line-height: 1.4;
+  }
+
+  .cta-ask .keyword {
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
   }
 </style>
 
@@ -280,7 +300,10 @@
         {{#each bullets}}<li>{{this}}</li>{{/each}}
       </ul>
     {{/if}}
-    <div class="pill">{{../wordmark}}</div>
+    <div class="cta-ask">
+      Comment <span class="keyword">{{../commentKeyword}}</span> and I will send you the full
+      project outline and the Claude Code prompt to build your own.
+    </div>
   {{else}}
     {{#if kicker}}<div class="kicker">{{kicker}}</div>{{/if}}
     <h2 class="heading">{{heading}}</h2>

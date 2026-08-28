@@ -2,7 +2,7 @@ import Handlebars from 'handlebars';
 
 import { BRAND, logoDataUri } from './brand';
 
-import { stripEmojis, stripEmojisDeep } from './sanitize';
+import { commentKeyword, stripEmojis, stripEmojisDeep } from './sanitize';
 import type { GeneratedPayload, HtmlTemplate, SlideRole } from './types';
 
 /** Slide numbering, for example "01". */
@@ -89,6 +89,10 @@ export function renderTemplate(
     wordmark: BRAND.wordmark,
     brandName: BRAND.name,
     author: BRAND.author,
+    // Reduced to one printable word here as well as where the model's answer
+    // arrives, because this is the only point every payload passes through —
+    // including one read back from a record or built by some other route.
+    commentKeyword: commentKeyword(payload.comment_keyword),
     logoDataUri: logoDataUri(),
     // Images from templates/assets, as {{assets.portrait}} and so on. Same
     // reasoning as the logo: setContent gives the page no origin, so a path

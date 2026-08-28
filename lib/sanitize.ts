@@ -39,3 +39,27 @@ export function stripEmojisDeep<T>(value: T): T {
   }
   return value;
 }
+
+/**
+ * The word readers are asked to comment, reduced to something printable.
+ *
+ * It goes on the last slide in heavy type and into the caption, and a reader
+ * has to type it back exactly — so a stray "Comment: BUILD!" or a phrase where
+ * one word was asked for is worse here than almost anywhere else. Letters and
+ * hyphens only, uppercased, first word wins, with a fallback so the slide
+ * always has something to ask for.
+ *
+ * Applied both where the model's answer arrives and again where a template
+ * renders it, because the second is the only place that catches a payload
+ * built by some other route.
+ */
+export function commentKeyword(value: unknown): string {
+  const cleaned = stripEmojis(String(value ?? ''))
+    .toUpperCase()
+    .replace(/[^A-Z\s-]/g, ' ')
+    .trim()
+    .split(/\s+/)[0]
+    ?.replace(/^-+|-+$/g, '');
+
+  return cleaned && cleaned.length >= 3 ? cleaned.slice(0, 18) : 'BLUEPRINT';
+}

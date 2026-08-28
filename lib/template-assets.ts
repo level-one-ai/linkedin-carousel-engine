@@ -112,6 +112,16 @@ export async function prepareTemplateAssets(): Promise<Record<string, string>> {
 
     try {
       const image = await prepareSlideImage(Buffer.from(match[2], 'base64'), match[1]);
+
+      // A design draws these up to 560px across. Anything smaller is being
+      // enlarged on the slide, which no amount of processing here can undo.
+      if (image.width < 560) {
+        console.warn(
+          `[assets] ${name} is only ${image.width}px wide and will be enlarged to fill the ` +
+            'slide, so it will look soft. Save it at around 1000px across.',
+        );
+      }
+
       // The type comes back from the redraw rather than being assumed: a
       // cut-out has to stay a PNG to keep its transparency, and calling it a
       // JPEG here would hand the browser bytes that do not match the label.

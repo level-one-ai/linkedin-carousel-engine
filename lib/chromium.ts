@@ -325,7 +325,7 @@ async function redrawImage(
   image: Buffer,
   mimeType: string,
   options: { width: number; quality: number; transparent?: boolean },
-): Promise<{ buffer: Buffer; mimeType: string }> {
+): Promise<PreparedImage> {
   const browser = await launch();
 
   try {
@@ -352,16 +352,31 @@ async function redrawImage(
       return Boolean(img?.complete && img.naturalWidth > 0);
     }, undefined, { timeout: 20_000 });
 
-    const box = await page.locator('#t').boundingBox();
-    const height = Math.max(1, Math.round(box?.height ?? options.width));
-    await page.setViewportSize({ width: options.width, height });
+    const natural = await page.evaluate(
+      () => (document.getElementById('t') as HTMLImageElement).naturalWidth,
+    );
 
-    const clip = { x: 0, y: 0, width: options.width, height };
+    // Never enlarge. Blowing a small source up to the target width costs a
+    // bigger file for the same detail, and the slide can scale it just as
+    // badly for free.
+    const width = Math.min(options.width, natural);
+    if (width !== options.width) {
+      await page.evaluate((w) => {
+        (document.getElementById('t') as HTMLImageElement).style.width = `${w}px`;
+      }, width);
+    }
+
+    const box = await page.locator('#t').boundingBox();
+    const height = Math.max(1, Math.round(box?.height ?? width));
+    await page.setViewportSize({ width, height });
+
+    const clip = { x: 0, y: 0, width, height };
 
     if (options.transparent) {
       return {
         buffer: Buffer.from(await page.screenshot({ type: 'png', omitBackground: true, clip })),
         mimeType: 'image/png',
+        width,
       };
     }
 
@@ -370,6 +385,7 @@ async function redrawImage(
         await page.screenshot({ type: 'jpeg', quality: options.quality, clip }),
       ),
       mimeType: 'image/jpeg',
+      width,
     };
   } finally {
     await browser.close().catch(() => {});
@@ -418,6 +434,8 @@ const TRANSPARENT_CAPABLE = new Set(['image/png', 'image/webp', 'image/avif']);
 export interface PreparedImage {
   buffer: Buffer;
   mimeType: string;
+  /** What it actually came out at, which is the source width when that is smaller. */
+  width: number;
 }
 
 /**

@@ -88,16 +88,13 @@ export function loadTemplateAssets(): Record<string, string> {
 let prepared: Record<string, string> | null = null;
 
 /**
- * The images, redrawn at the size a slide actually shows them, plus a black and
- * white copy of each as `<name>Mono`.
+ * The images, redrawn at the size a slide actually shows them.
  *
- * Both matter for size. A photograph goes into two slides of the portrait
- * design, in colour on the cover and in black and white on the sign off, and
- * doing that second one with a CSS filter costs far more than it looks:
- * Chromium cannot put a filter in a PDF, so it rasterises the filtered image at
- * full page resolution. Measured on a detailed 961KB photograph, the carousel
- * came to 6.3MB against a 10MB field. Converting once here brings the whole
- * thing back under a megabyte.
+ * Size is the reason. Chromium embeds a picture in the PDF at the resolution it
+ * is painted, so a photograph straight off a phone costs the same whether the
+ * slide draws it 1080px wide or 560px, and a transparent cut-out has to be a
+ * lossless PNG on top of that. Bringing it down to 640px first is what keeps an
+ * eight slide carousel around a megabyte against a 10MB field.
  *
  * Cached after the first generation, because the files only change when the
  * repository does. Falls back to the untouched image if the browser is
@@ -114,15 +111,13 @@ export async function prepareTemplateAssets(): Promise<Record<string, string>> {
     if (!match) continue;
 
     try {
-      const { colour, mono } = await prepareSlideImage(Buffer.from(match[2], 'base64'), match[1]);
+      const image = await prepareSlideImage(Buffer.from(match[2], 'base64'), match[1]);
       // The type comes back from the redraw rather than being assumed: a
       // cut-out has to stay a PNG to keep its transparency, and calling it a
       // JPEG here would hand the browser bytes that do not match the label.
-      out[name] = `data:${colour.mimeType};base64,${colour.buffer.toString('base64')}`;
-      out[`${name}Mono`] = `data:${mono.mimeType};base64,${mono.buffer.toString('base64')}`;
+      out[name] = `data:${image.mimeType};base64,${image.buffer.toString('base64')}`;
     } catch (error) {
       console.warn(`[assets] Could not redraw ${name}, using it as it is: ${String(error)}`);
-      out[`${name}Mono`] = dataUri;
     }
   }
 

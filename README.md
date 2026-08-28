@@ -118,21 +118,21 @@ alone. See [POCKETBASE.md](POCKETBASE.md).
 
 ### The portrait design
 
-`level_one_portrait` is built around a photograph of the author, standing in the bottom left corner
-of a cream page and cut off by the bottom edge, with the words above. In colour on the first slide,
-black and white on the last. Drop a `portrait.png` into
-[`templates/assets/`](templates/assets/README.md) and it appears; until you do it is not offered at
-all, and `/api/templates` says what it is waiting for.
+`level_one_portrait` is built around a photograph of the author, standing in the bottom right corner
+of a cream page and cut off by the bottom edge, with the words above. Two files go into
+[`templates/assets/`](templates/assets/README.md): `portrait.png` in colour on the first slide, and
+`background.png`, the same photograph in black and white, on the last. Both are supplied rather than
+one being converted from the other, so the black and white is your own. Until both are there the
+design is not offered at all, and `/api/templates` says which file it is waiting for.
 
 **Remove the background from that photograph.** There is no frame around it: the cream it stands on
 is the page. `lib/chromium.ts` carries the alpha channel through the redraw and keeps the file a PNG
 for exactly this reason — painting a background behind it and saving as JPEG, which has no alpha at
 all, would put you inside a coloured rectangle on a page of a different colour.
 
-The black and white copy is made once rather than with a CSS filter in the template. That is not
-fussiness: Chromium cannot put a filter in a PDF, so it rasterises the filtered image at full page
-resolution, and a detailed photograph took the carousel from under 1MB to 6.3MB against a 10MB
-field.
+Both are redrawn at 640px, the widest any design draws a picture, before they reach a slide.
+Chromium embeds an image at the resolution it is painted, so a photograph straight off a phone costs
+the same either way, and a transparent cut-out has to be a lossless PNG on top of that.
 
 ---
 

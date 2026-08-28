@@ -141,11 +141,13 @@
     transform: rotate(45deg);
   }
 
-  /* ---- Slides 1 and 8: the photograph ----------------------------------
-     The picture is small and anchored to the bottom left, cut off by the edge
-     of the page, with the words above it — the arrangement the reference uses.
-     It is a cut-out with no background of its own, so the cream behind it is
-     the page itself. */
+  /* ---- Slides 1 and 8: the photographs ---------------------------------
+     Two files, both supplied with their backgrounds already removed:
+     portrait.png in colour on the cover, background.png in black and white on
+     the sign off. Each is small and anchored to the bottom right, cut off by
+     the edge of the page, with the words above it — the arrangement the
+     reference uses. They are cut-outs with no background of their own, so the
+     cream behind them is the page itself. */
 
   /* Reserved for the photograph. The text block is given a bottom padding of
      the same height, which is what guarantees the two never overlap however
@@ -157,12 +159,12 @@
 
   .slide-photo > .portrait {
     position: absolute;
-    left: 0;
+    right: 0;
     bottom: 0;
     width: 560px;
     height: 620px;
     object-fit: contain;
-    object-position: left bottom;
+    object-position: right bottom;
   }
 
   .slide-photo > .photo-topbar {
@@ -231,25 +233,26 @@
     background: #14120e;
   }
 
-  /* Bottom right, clear of the picture in the opposite corner. The width is
-     capped rather than left to the content: a long project title stretches the
-     row left across the photograph, where it is unreadable. */
+  /* Bottom left, in the corner the photograph does not use. The width is
+     capped rather than left to the content: a long project title would
+     otherwise stretch the row right across the photograph, where it is
+     unreadable. Stacked, and set tighter than the top bar, because a project
+     title at full tracking takes five lines in a column this narrow. */
   .slide-photo > .photo-foot {
     position: absolute;
-    right: 84px;
+    left: 84px;
     bottom: 84px;
     z-index: 1;
-    width: 420px;
+    width: 400px;
     display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 30px;
-    font-size: 23px;
-    line-height: 1.5;
-    letter-spacing: 0.2em;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 22px;
+    font-size: 20px;
+    line-height: 1.45;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: #6b6357;
-    text-align: right;
   }
 
   .slide-photo > .photo-foot .arrow { flex: none; }
@@ -303,11 +306,10 @@
       <span class="arrow"></span>
     </div>
   {{else if isCta}}
-    <!-- The black and white copy is made once by lib/template-assets.ts, not
-         with a CSS filter here: Chromium cannot put a filter in a PDF, so it
-         rasterises the filtered image at full page size. On a detailed
-         photograph that alone took the carousel from under 1MB to 6.3MB. -->
-    <img class="portrait" src="{{../assets.portraitMono}}" alt="" />
+    <!-- The second uploaded file: the same photograph in black and white,
+         supplied rather than generated, so it is your own conversion rather
+         than a filter's guess at one. -->
+    <img class="portrait" src="{{../assets.background}}" alt="" />
     <div class="photo-topbar">
       <span>{{../author}}</span>
       <span>{{../brandName}}</span>

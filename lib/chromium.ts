@@ -309,23 +309,22 @@ export async function renderSlides(html: string, postMode: PostMode): Promise<Re
 const THUMBNAIL_WIDTH_PX = 432;
 
 /**
- * Redraws an image at a given width, optionally in black and white.
+ * Redraws an image at a given width.
  *
  * Two callers, one reason: a picture that arrives at whatever size it happens
  * to be has to be brought down to the size it is actually shown at before it
  * goes anywhere near a size limit.
  *
- * The greyscale option exists because doing it with a CSS filter in the slide
- * template is expensive in the wrong place: Chromium cannot express a filter in
- * a PDF, so it rasterises the filtered image at full page resolution and embeds
- * that — a 961KB photograph turned an 8 slide carousel into 6.3MB, against a
- * 10MB field. Converting once here and embedding an ordinary JPEG costs a few
- * hundred KB instead. Same lesson as the smoke textures.
+ * Doing this in the slide template instead would be expensive in the wrong
+ * place. Chromium cannot express a CSS filter or a scaled-down source in a PDF
+ * without rasterising it at full page resolution, which is how a 961KB
+ * photograph once turned an 8 slide carousel into 6.3MB against a 10MB field.
+ * Same lesson as the smoke textures.
  */
 async function redrawImage(
   image: Buffer,
   mimeType: string,
-  options: { width: number; quality: number; grayscale?: boolean; transparent?: boolean },
+  options: { width: number; quality: number; transparent?: boolean },
 ): Promise<{ buffer: Buffer; mimeType: string }> {
   const browser = await launch();
 
@@ -342,8 +341,7 @@ async function redrawImage(
       // sits as a visible box on a slide of any other colour.
       `<style>html,body{margin:0;padding:0` +
         `${options.transparent ? '' : ';background:#faf9f6'}}` +
-        `img{display:block;width:${options.width}px;height:auto` +
-        `${options.grayscale ? ';filter:grayscale(1) contrast(1.06)' : ''}}</style>` +
+        `img{display:block;width:${options.width}px;height:auto}</style>` +
         `<img id="t" src="data:${mimeType};base64,${image.toString('base64')}">`,
       { waitUntil: 'load' },
     );
@@ -422,21 +420,23 @@ export interface PreparedImage {
   mimeType: string;
 }
 
-/** A template image at the size a slide shows it, in colour and in black and white. */
+/**
+ * A template image at the size a slide shows it.
+ *
+ * No black and white copy is made here. The portrait design takes two uploaded
+ * files — the colour photograph and a black and white one — so a conversion
+ * done here would be a second guess at something already supplied, and would
+ * cost a browser page per image on every generation for nothing.
+ */
 export async function prepareSlideImage(
   image: Buffer,
   mimeType: string,
-): Promise<{ colour: PreparedImage; mono: PreparedImage }> {
-  const shared = {
+): Promise<PreparedImage> {
+  return redrawImage(image, mimeType, {
     width: TEMPLATE_IMAGE_WIDTH_PX,
     quality: SLIDE_IMAGE_QUALITY,
     transparent: TRANSPARENT_CAPABLE.has(mimeType.toLowerCase()),
-  };
-
-  return {
-    colour: await redrawImage(image, mimeType, shared),
-    mono: await redrawImage(image, mimeType, { ...shared, grayscale: true }),
-  };
+  });
 }
 
 export interface RendererDiagnosis {

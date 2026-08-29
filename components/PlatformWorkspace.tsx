@@ -5,7 +5,7 @@ import { Check, Loader2, RefreshCw } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 import CopyButton from '@/components/CopyButton';
-import { PLATFORMS, PLATFORM_SPECS, type Platform } from '@/lib/platforms';
+import { PLATFORMS, PLATFORM_SPECS, POST_TYPE_LABELS, type Platform } from '@/lib/platforms';
 import type { PostSummary } from '@/lib/types';
 
 const LinkedInMockup = dynamic(() => import('@/components/previews/LinkedInMockup'), {
@@ -49,8 +49,18 @@ export default function PlatformWorkspace({ post }: { post: PostSummary }) {
   const [error, setError] = useState('');
 
   const fileUrl = post.hasAsset ? `/api/posts/${post.id}/file` : null;
-  const imageBase = `/api/posts/${post.id}/images`;
-  const slides = Math.max(1, post.slide_count);
+  const entry = post.plan[active];
+  const skipped = entry.type === 'skip';
+
+  /**
+   * Each tab shows its own network's design, not the lead one. An empty
+   * templateKey means the row followed the post's own choice, which is the
+   * design the record already names.
+   */
+  const design = entry.templateKey || post.chosen_template_key;
+  const imageBase = `/api/posts/${post.id}/images?design=${encodeURIComponent(design)}`;
+  // A single image post is page one and nothing else, whatever was rendered.
+  const slides = entry.type === 'image' ? 1 : Math.max(1, post.slide_count);
 
   async function patch(platform: Platform, body: Record<string, unknown>) {
     setBusy(platform);
@@ -90,7 +100,8 @@ export default function PlatformWorkspace({ post }: { post: PostSummary }) {
 
   const caption = captions[active];
   const spec = PLATFORM_SPECS[active];
-  const approvedCount = PLATFORMS.filter((platform) => approvals[platform]).length;
+  const live = PLATFORMS.filter((platform) => post.plan[platform].type !== 'skip');
+  const approvedCount = live.filter((platform) => approvals[platform]).length;
 
   return (
     <div>
@@ -118,7 +129,7 @@ export default function PlatformWorkspace({ post }: { post: PostSummary }) {
         ))}
 
         <span className="ml-auto text-fluid-xs text-muted">
-          {approvedCount} of {PLATFORMS.length} approved
+          {approvedCount} of {live.length} approved
         </span>
       </div>
 
@@ -134,11 +145,24 @@ export default function PlatformWorkspace({ post }: { post: PostSummary }) {
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <section>
           <p className="mb-3 text-fluid-xs uppercase tracking-widest text-muted">
-            How it will look on {spec.label}
+            {skipped ? `${spec.label} was skipped` : `How it will look on ${spec.label}`}
           </p>
 
           <div className="mx-auto w-full max-w-[555px]">
-            {active === 'linkedin' ? (
+            {/* A skipped network has no slides of its own, so drawing the
+                mockup would show another network's pictures and read as
+                something having gone wrong. */}
+            {skipped ? (
+              <div className="card text-center">
+                <p className="text-fluid-sm font-semibold text-foreground">
+                  No slides were rendered for {spec.label}
+                </p>
+                <p className="mt-1.5 text-fluid-xs text-muted">
+                  This network was set to Skip when the post was made. The caption below is still
+                  written for it, so you can copy it and post by hand.
+                </p>
+              </div>
+            ) : active === 'linkedin' ? (
               <LinkedInMockup post={post} caption={caption} fileUrl={fileUrl} />
             ) : active === 'x' ? (
               <XMockup post={post} caption={caption} slides={slides} imageBase={imageBase} />
@@ -152,6 +176,11 @@ export default function PlatformWorkspace({ post }: { post: PostSummary }) {
 
         <section className="space-y-4">
           <div className="card">
+            <p className="mb-3 text-fluid-xs text-muted">
+              {POST_TYPE_LABELS[entry.type]}
+              {skipped ? '' : ` · ${design.replace(/_/g, ' ')}`}
+            </p>
+
             <label className="flex cursor-pointer items-start gap-3">
               <input
                 type="checkbox"

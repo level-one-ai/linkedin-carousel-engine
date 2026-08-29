@@ -181,16 +181,9 @@ async function launch(): Promise<Browser> {
   }
 }
 
-/**
- * One slide as a picture, in one of the two shapes the networks want.
- *
- * "portrait" is the slide as designed, 4:5, which Facebook and Instagram post
- * as it is. "wide" is the top of the same slide cropped to 16:9 for X, whose
- * timeline puts bars down both sides of a 4:5 image.
- */
+/** One slide as a picture, at the size its design declares. */
 export interface SlideImage {
   slide: number;
-  shape: 'portrait' | 'wide';
   buffer: Buffer;
 }
 
@@ -263,15 +256,15 @@ async function fitSlides(
  * Every slide as a picture, for the networks that post images rather than a
  * document.
  *
- * LinkedIn takes the PDF. Facebook and Instagram take the slide as it is, at
- * its native 4:5. X is the exception: a 4:5 image is shown in the timeline with
- * bars down both sides, so each slide is cropped to 16:9 from the top, where
- * the heading is.
+ * One image per slide, at the size the design declares. There is no crop any
+ * more: a design meant for X is drawn 1600x900 and a design meant for
+ * Instagram is drawn square, so cropping a 4:5 slide into those shapes — which
+ * is what this used to do — would be cropping something already the right
+ * shape.
  *
- * JPEG rather than PNG. Eight slides times two sizes is sixteen images on one
- * record, and a slide is photographic enough — smoke gradients, a photograph on
- * the portrait design — that lossless costs several megabytes for no visible
- * gain.
+ * JPEG rather than PNG. A slide is photographic enough — smoke gradients, a
+ * photograph on the portrait design — that lossless costs megabytes for no
+ * visible gain, and a carousel is eight of them.
  */
 async function captureSlideImages(page: Page): Promise<SlideImage[]> {
   const slides = page.locator('.slide');
@@ -279,41 +272,12 @@ async function captureSlideImages(page: Page): Promise<SlideImage[]> {
   const images: SlideImage[] = [];
 
   for (let index = 0; index < count; index += 1) {
-    const slide = slides.nth(index);
-
     images.push({
       slide: index + 1,
-      shape: 'portrait',
       buffer: Buffer.from(
-        await slide.screenshot({ type: 'jpeg', quality: SLIDE_IMAGE_QUALITY, scale: 'css' }),
-      ),
-    });
-
-    const box = await slide.boundingBox();
-    if (!box) continue;
-
-    // Cropped from the middle rather than the top. The designs do not agree on
-    // where the content sits — cream centres its cover, noir hangs it from the
-    // top, sand anchors it to the bottom — so taking the top band gives an
-    // empty rectangle on some of them. The middle is the one band that holds
-    // something on all six.
-    const wideHeight = Math.round((box.width * 9) / 16);
-
-    images.push({
-      slide: index + 1,
-      shape: 'wide',
-      buffer: Buffer.from(
-        await page.screenshot({
-          type: 'jpeg',
-          quality: SLIDE_IMAGE_QUALITY,
-          scale: 'css',
-          clip: {
-            x: box.x,
-            y: box.y + Math.max(0, Math.round((box.height - wideHeight) / 2)),
-            width: box.width,
-            height: wideHeight,
-          },
-        }),
+        await slides
+          .nth(index)
+          .screenshot({ type: 'jpeg', quality: SLIDE_IMAGE_QUALITY, scale: 'css' }),
       ),
     });
   }

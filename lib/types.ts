@@ -1,4 +1,4 @@
-import type { Platform, PlatformCaptions } from './platforms';
+import type { AccountType, Platform, PlatformCaptions, PostPlan } from './platforms';
 export type PostMode = 'carousel' | 'image';
 export type InputType = 'zip' | 'text';
 
@@ -82,8 +82,11 @@ export interface PostSummary {
   captions: PlatformCaptions;
   /** Which networks are approved for posting. */
   approvals: Record<Platform, boolean>;
-  /** Stored slide image filenames, as slide-03-wide.jpg. */
+  /** Stored slide image filenames, as level_one_noir__03.jpg. */
   imageNames: string[];
+  /** What each network is doing, and with which design. */
+  plan: PostPlan;
+  accountType: AccountType | string;
   hasThumbnail: boolean;
   created: string;
 }

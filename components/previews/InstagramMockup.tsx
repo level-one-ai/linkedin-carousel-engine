@@ -42,7 +42,6 @@ export default function InstagramMockup({ post, caption, slides, imageBase }: Mo
         <SlideImages
           imageBase={imageBase}
           slides={slides}
-          shape="portrait"
           aspect="aspect-[4/5]"
           showDots
         />

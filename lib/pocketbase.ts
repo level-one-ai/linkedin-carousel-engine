@@ -3,7 +3,14 @@ import type { RecordModel } from 'pocketbase';
 
 import { config } from './config';
 import type { SlideImage } from './chromium';
-import { PLATFORMS, PLATFORM_SPECS, emptyCaptions, type Platform, type PlatformCaptions } from './platforms';
+import {
+  PLATFORMS,
+  PLATFORM_SPECS,
+  coercePlan,
+  emptyCaptions,
+  type Platform,
+  type PlatformCaptions,
+} from './platforms';
 import { repairTemplateHtml, templateProblem } from './template-html';
 import type { HtmlTemplate, InputType, PostMode, PostSummary } from './types';
 
@@ -269,9 +276,10 @@ export function toPostSummary(record: RecordModel): PostSummary {
     created: String(record.created ?? ''),
     captions: readCaptions(record),
     approvals: readApprovals(record),
-    // The stored filenames, in the order they were uploaded, which is slide
-    // order alternating portrait and wide.
+    // The stored filenames, as <design>__<slide>.jpg.
     imageNames: Array.isArray(record.images) ? record.images.map(String) : [],
+    plan: coercePlan(parseJson<unknown>(record.plan, null)),
+    accountType: String(record.account_type ?? 'personal'),
   };
 }
 
@@ -317,8 +325,14 @@ export interface NewPost {
   image_prompt: string;
   /** One caption per network. */
   captions: PlatformCaptions;
-  /** Every slide as a picture, for the networks that post images. */
-  images?: SlideImage[];
+  /**
+   * The rendered designs, keyed by template. Two networks on the same design
+   * share one entry rather than storing the same pictures twice.
+   */
+  renders?: Array<{ templateKey: string; pdf: Buffer; images: SlideImage[] }>;
+  /** What each network is doing, and with which design. */
+  plan: unknown;
+  account_type: string;
   /**
    * The rendered carousel. Absent on a single image post, which has no file
    * until a picture is uploaded onto it.
@@ -356,18 +370,30 @@ export async function savePost(entry: NewPost): Promise<string> {
     form.append(PLATFORM_SPECS[platform].captionField, entry.captions[platform] ?? '');
   }
 
-  // Named by slide and shape so the preview can ask for "slide 3, wide"
-  // without depending on the order PocketBase hands them back in.
+  form.append('plan', JSON.stringify(entry.plan ?? {}));
+  form.append('account_type', entry.account_type);
+
+  // Named by design and slide, so a preview can ask for "the third slide of
+  // level_one_noir" without depending on the order PocketBase returns them in,
+  // and so two networks sharing a design share the stored pictures.
   //
   // Underscores rather than hyphens because PocketBase slugifies a filename on
   // upload and turns hyphens into underscores, then appends a random suffix.
   // Uploading the name it is going to store anyway keeps the two ends agreeing.
-  for (const image of entry.images ?? []) {
+  for (const render of entry.renders ?? []) {
     form.append(
-      'images',
-      new Blob([new Uint8Array(image.buffer)], { type: 'image/jpeg' }),
-      `slide_${String(image.slide).padStart(2, '0')}_${image.shape}.jpg`,
+      'renders',
+      new Blob([new Uint8Array(render.pdf)], { type: 'application/pdf' }),
+      `${render.templateKey}.pdf`,
     );
+
+    for (const image of render.images) {
+      form.append(
+        'images',
+        new Blob([new Uint8Array(image.buffer)], { type: 'image/jpeg' }),
+        `${render.templateKey}__${String(image.slide).padStart(2, '0')}.jpg`,
+      );
+    }
   }
 
   if (entry.asset) {

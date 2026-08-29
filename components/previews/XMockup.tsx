@@ -58,7 +58,6 @@ export default function XMockup({ post, caption, slides, imageBase }: MockupProp
               <SlideImages
                 imageBase={imageBase}
                 slides={slides}
-                shape="wide"
                 aspect="aspect-[16/9]"
                 rounded="rounded-2xl border border-[#2f3336]"
               />

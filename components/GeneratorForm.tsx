@@ -16,13 +16,32 @@ import { useRouter } from 'next/navigation';
 
 import GeneratingLoader from './GeneratingLoader';
 import HealthLine from './HealthLine';
+import {
+  ACCOUNT_TYPES,
+  PLATFORMS,
+  PLATFORM_SPECS,
+  POST_TYPES,
+  POST_TYPE_LABELS,
+  defaultPlan,
+  type AccountType,
+  type Platform,
+  type PostPlan,
+  type PostType,
+} from '@/lib/platforms';
 import type { GenerateResult, PostMode } from '@/lib/types';
 
 interface TemplateSummary {
   template_key: string;
   template_name: string;
   category: string;
+  /** Which network the design was drawn for. Absent means it suits any. */
+  platform?: string;
 }
+
+const ACCOUNT_LABELS: Record<AccountType, { label: string; hint: string }> = {
+  personal: { label: 'Personal', hint: 'Your own profile' },
+  business: { label: 'Business', hint: 'A company page' },
+};
 
 const MODES: Array<{ id: PostMode; label: string; icon: typeof Layers; hint: string }> = [
   {
@@ -56,6 +75,8 @@ export default function GeneratorForm({ onBusyChange }: { onBusyChange?: (busy: 
   const [dragging, setDragging] = useState(false);
   const [templateKey, setTemplateKey] = useState('');
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
+  const [accountType, setAccountType] = useState<AccountType>('personal');
+  const [plan, setPlan] = useState<PostPlan>(defaultPlan());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** Only set when the post was generated but could not be saved. */
@@ -105,6 +126,8 @@ export default function GeneratorForm({ onBusyChange }: { onBusyChange?: (busy: 
     const form = new FormData();
     form.append('postMode', postMode);
     form.append('description', description);
+    form.append('accountType', accountType);
+    if (postMode === 'carousel') form.append('plan', JSON.stringify(plan));
     if (templateKey) form.append('templateKey', templateKey);
     if (file) form.append('file', file);
 
@@ -145,6 +168,23 @@ export default function GeneratorForm({ onBusyChange }: { onBusyChange?: (busy: 
       );
       setBusy(false);
     }
+  }
+
+  /** Change one network's row without disturbing the other three. */
+  function setPlanEntry(platform: Platform, patch: Partial<PostPlan[Platform]>) {
+    setPlan((current) => ({ ...current, [platform]: { ...current[platform], ...patch } }));
+  }
+
+  /**
+   * The designs worth offering for a network: the ones drawn for it first,
+   * then the ones drawn for no network in particular. A design made for
+   * Instagram is a square, and offering it on X would just letterbox it.
+   */
+  function designsFor(platform: Platform): TemplateSummary[] {
+    return [
+      ...templates.filter((template) => template.platform === platform),
+      ...templates.filter((template) => !template.platform),
+    ];
   }
 
   return (
@@ -192,6 +232,97 @@ export default function GeneratorForm({ onBusyChange }: { onBusyChange?: (busy: 
               })}
             </div>
           </section>
+
+          {postMode === 'carousel' ? (
+            <section className="card">
+              <h2 className="mb-1 text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
+                Networks
+              </h2>
+              <p className="mb-4 text-fluid-xs text-muted">
+                Each network gets its own decision. X and your LinkedIn company page are posted by
+                hand, so set them to Skip unless you want slides for them anyway.
+              </p>
+
+              <div className="mb-5 grid gap-3 xs:grid-cols-2">
+                {ACCOUNT_TYPES.map((type) => {
+                  const active = accountType === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setAccountType(type)}
+                      aria-pressed={active}
+                      className={`rounded-2xl border p-3 text-left transition-colors ${
+                        active
+                          ? 'border-foreground/40 bg-white/80'
+                          : 'border-line bg-white/40 hover:border-foreground/25'
+                      }`}
+                    >
+                      <div className="text-fluid-sm font-semibold text-foreground">
+                        {ACCOUNT_LABELS[type].label}
+                      </div>
+                      <div className="text-fluid-xs text-muted">{ACCOUNT_LABELS[type].hint}</div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-3">
+                {PLATFORMS.map((platform) => {
+                  const entry = plan[platform];
+                  const skipped = entry.type === 'skip';
+                  return (
+                    <div
+                      key={platform}
+                      className="grid items-center gap-2 sm:grid-cols-[7rem_minmax(0,9rem)_minmax(0,1fr)]"
+                    >
+                      <span
+                        className={`text-fluid-sm font-medium ${
+                          skipped ? 'text-muted' : 'text-foreground'
+                        }`}
+                      >
+                        {PLATFORM_SPECS[platform].label}
+                      </span>
+
+                      <select
+                        value={entry.type}
+                        aria-label={`${PLATFORM_SPECS[platform].label} post type`}
+                        onChange={(event) =>
+                          setPlanEntry(platform, { type: event.target.value as PostType })
+                        }
+                        className="field-input !py-2 text-fluid-sm normal-case tracking-normal"
+                      >
+                        {POST_TYPES.map((type) => (
+                          <option key={type} value={type}>
+                            {POST_TYPE_LABELS[type]}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* A skipped network renders nothing, so a design for it
+                          would be a control that changes nothing. */}
+                      <select
+                        value={entry.templateKey}
+                        disabled={skipped}
+                        aria-label={`${PLATFORM_SPECS[platform].label} design`}
+                        onChange={(event) =>
+                          setPlanEntry(platform, { templateKey: event.target.value })
+                        }
+                        className="field-input !py-2 text-fluid-sm normal-case tracking-normal disabled:opacity-40"
+                      >
+                        <option value="">Same as the design below</option>
+                        {designsFor(platform).map((template) => (
+                          <option key={template.template_key} value={template.template_key}>
+                            {template.template_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
 
           <section className="card">
             <h2 className="mb-3 text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
@@ -270,7 +401,7 @@ export default function GeneratorForm({ onBusyChange }: { onBusyChange?: (busy: 
             {postMode === 'carousel' ? (
               <div className="mt-4">
               <label className="block text-fluid-xs uppercase tracking-widest text-muted">
-                Slide design
+                Default slide design
                 <select
                   value={templateKey}
                   onChange={(event) => setTemplateKey(event.target.value)}

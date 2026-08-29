@@ -119,6 +119,10 @@ const COLLECTIONS = [
       { name: 'facebook_post_id', type: 'text', required: false },
       { name: 'instagram_post_id', type: 'text', required: false },
       { name: 'target_profile_type', type: 'text', required: false },
+      // What each network is doing: its type (carousel, image, skip) and the
+      // design it uses. Stored so a post can be reopened and understood.
+      { name: 'plan', type: 'json', maxSize: 200000 },
+      { name: 'account_type', type: 'text', required: false },
       // The carousel PDF or the single PNG. This is what makes a post
       // reopenable rather than a one-time download.
       {
@@ -137,14 +141,22 @@ const COLLECTIONS = [
         maxSize: 2097152,
         protected: true,
       },
-      // Every slide as a picture, in both shapes: the 4:5 slide for Facebook
-      // and Instagram and a 16:9 crop for X. Two per slide, so a 10 slide
-      // carousel needs 20 slots.
+      // Every slide as a picture, named <design>__<slide>.jpg. Four networks
+      // can use four different designs, so ten slides each needs forty slots.
       {
         name: 'images',
         type: 'file',
         maxSelect: 40,
         maxSize: 3145728,
+        protected: true,
+      },
+      // One PDF per distinct design, named <design>.pdf. `asset` above stays
+      // as the lead network's copy, which is what the download button serves.
+      {
+        name: 'renders',
+        type: 'file',
+        maxSelect: 6,
+        maxSize: 10485760,
         protected: true,
       },
       // The history grid sorts on `created`. Without these fields declared,

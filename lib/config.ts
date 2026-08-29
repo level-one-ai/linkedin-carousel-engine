@@ -27,6 +27,14 @@ export const config = {
     return optional('GEMINI_MODEL', 'gemini-2.5-flash');
   },
   /**
+   * Where the Gemini calls go. Empty means Google's own endpoint, which is
+   * what production uses. Set it to send them through a proxy, or at a stub
+   * while testing the pipeline without spending a request.
+   */
+  get geminiBaseUrl() {
+    return optional('GEMINI_BASE_URL', '');
+  },
+  /**
    * Explicit Chromium binary. Empty means "discover one", which lib/chromium.ts
    * does by looking through Playwright's downloads and the usual Chrome, Chromium
    * and Edge locations. The Docker image sets this to /usr/bin/chromium.

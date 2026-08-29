@@ -11,25 +11,30 @@ export const dynamic = 'force-dynamic';
  * Same reasoning as the file route beside this one: the field is `protected`,
  * so the bytes need a token that must not reach the browser.
  *
- *   ?slide=3&shape=wide   the 16:9 crop of slide three
- *   ?slide=3              the 4:5 slide as designed
+ *   ?slide=3&design=level_one_noir   slide three of the Noir render
+ *   ?slide=3                         slide three of whichever design is stored
  *
- * Asked for by slide and shape rather than by index, because PocketBase
- * appends a random suffix to every filename and returns them in its own order.
+ * Asked for by slide and design rather than by index, because a post can hold
+ * more than one design's slides, and because PocketBase appends a random
+ * suffix to every filename and returns them in its own order.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const query = new URL(request.url).searchParams;
   const slide = Math.max(1, Number(query.get('slide') ?? '1') || 1);
-  const shape = query.get('shape') === 'wide' ? 'wide' : 'portrait';
+  // Which design's pictures. Two networks on the same design share them.
+  const design = (query.get('design') ?? '').replace(/[^a-z0-9_]/gi, '');
 
   try {
     const record = await getPostRecord(id);
     const stored = Array.isArray(record.images) ? record.images.map(String) : [];
 
-    // Either separator: PocketBase slugifies on upload, and a record written
-    // before that was understood holds hyphens.
-    const wanted = new RegExp(`^slide[-_]${String(slide).padStart(2, '0')}[-_]${shape}`);
+    const padded = String(slide).padStart(2, '0');
+    // A design is asked for by name; without one, any design's slide will do,
+    // which is what the history card wants.
+    const wanted = design
+      ? new RegExp(`^${design}__${padded}\\b`)
+      : new RegExp(`__${padded}\\b`);
     const name = stored.find((file) => wanted.test(file));
 
     if (!name) {
@@ -38,7 +43,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           error:
             stored.length === 0
               ? 'This post has no slide images. It was generated before they were rendered.'
-              : `No ${shape} image for slide ${slide}.`,
+              : `No image for slide ${slide}${design ? ` of ${design}` : ''}.`,
         },
         { status: 404 },
       );
@@ -57,7 +62,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return new NextResponse(await upstream.arrayBuffer(), {
       headers: {
         'Content-Type': 'image/jpeg',
-        'Content-Disposition': `inline; filename="slide-${slide}-${shape}.jpg"`,
+        'Content-Disposition': `inline; filename="slide-${slide}.jpg"`,
         'Cache-Control': 'private, max-age=60',
       },
     });

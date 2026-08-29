@@ -47,7 +47,7 @@ export default function FacebookMockup({ post, caption, slides, imageBase }: Moc
       </div>
 
       {post.post_mode === 'carousel' ? (
-        <SlideImages imageBase={imageBase} slides={slides} shape="portrait" aspect="aspect-[4/5]" />
+        <SlideImages imageBase={imageBase} slides={slides} aspect="aspect-[4/5]" />
       ) : (
         <div className="grid aspect-[4/5] place-items-center bg-black/5 text-[12px] text-black/50">
           <span className="px-6 text-center">The uploaded picture goes here.</span>

@@ -20,7 +20,7 @@ export interface MockupProps {
   caption: string;
   /** Slide count, for paging through the image set. */
   slides: number;
-  /** /api/posts/<id>/images — the query is added per platform. */
+  /** /api/posts/<id>/images?design=... — already carries this platform's design. */
   imageBase: string;
 }
 
@@ -103,14 +103,17 @@ export function ClampedCaption({
 export function SlideImages({
   imageBase,
   slides,
-  shape,
   aspect,
   rounded = '',
   showDots = false,
 }: {
   imageBase: string;
   slides: number;
-  shape: 'portrait' | 'wide';
+  /**
+   * The box the network draws the picture in. The design is already the right
+   * shape, so this matches rather than crops — but a design of the wrong shape
+   * for its network should look wrong here, which is the point of the preview.
+   */
   aspect: string;
   rounded?: string;
   showDots?: boolean;
@@ -122,7 +125,7 @@ export function SlideImages({
   useEffect(() => {
     setIndex(0);
     setFailed(false);
-  }, [imageBase, shape]);
+  }, [imageBase]);
 
   if (failed) {
     return (
@@ -140,10 +143,10 @@ export function SlideImages({
     <div className={`relative overflow-hidden bg-black/5 ${aspect} ${rounded}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={`${imageBase}?slide=${index + 1}&shape=${shape}`}
+        src={`${imageBase}&slide=${index + 1}`}
         alt={`Slide ${index + 1} of ${count}`}
         onError={() => setFailed(true)}
-        className="h-full w-full object-cover"
+        className="h-full w-full object-contain"
       />
 
       {count > 1 ? (

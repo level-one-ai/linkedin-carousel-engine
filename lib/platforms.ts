@@ -87,6 +87,74 @@ export const PLATFORM_SPECS: Record<Platform, PlatformSpec> = {
   },
 };
 
+/**
+ * What a platform is doing for a given post.
+ *
+ * "skip" is a first-class choice rather than an unticked box, because leaving
+ * a network out is a decision worth recording — X and the LinkedIn company
+ * page are posted by hand, and the post should say so rather than looking
+ * like something failed.
+ */
+export const POST_TYPES = ['carousel', 'image', 'skip'] as const;
+export type PostType = (typeof POST_TYPES)[number];
+
+export function isPostType(value: unknown): value is PostType {
+  return POST_TYPES.includes(value as PostType);
+}
+
+export const POST_TYPE_LABELS: Record<PostType, string> = {
+  carousel: 'Carousel',
+  image: 'Single image',
+  skip: 'Skip',
+};
+
+/** Whose account the post goes out as. */
+export const ACCOUNT_TYPES = ['personal', 'business'] as const;
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
+
+export function isAccountType(value: unknown): value is AccountType {
+  return ACCOUNT_TYPES.includes(value as AccountType);
+}
+
+/** One platform's decisions for one post. */
+export interface PlatformPlan {
+  type: PostType;
+  /** Which design renders it. Empty means let the model choose. */
+  templateKey: string;
+}
+
+export type PostPlan = Record<Platform, PlatformPlan>;
+
+/**
+ * The default plan: a carousel everywhere, design left to the model.
+ *
+ * Deliberately not "skip everything" — a post that does nothing unless you
+ * configure four dropdowns is a worse starting point than one that does the
+ * obvious thing and lets you turn parts off.
+ */
+export function defaultPlan(): PostPlan {
+  return {
+    linkedin: { type: 'carousel', templateKey: '' },
+    x: { type: 'carousel', templateKey: '' },
+    facebook: { type: 'carousel', templateKey: '' },
+    instagram: { type: 'carousel', templateKey: '' },
+  };
+}
+
+/** Reads a plan back off a stored record, filling in anything absent. */
+export function coercePlan(value: unknown): PostPlan {
+  const stored = (value ?? {}) as Record<string, unknown>;
+  const plan = defaultPlan();
+
+  for (const platform of PLATFORMS) {
+    const entry = (stored[platform] ?? {}) as Record<string, unknown>;
+    if (isPostType(entry.type)) plan[platform].type = entry.type;
+    if (typeof entry.templateKey === 'string') plan[platform].templateKey = entry.templateKey;
+  }
+
+  return plan;
+}
+
 /** The captions as they travel through the app, keyed by platform. */
 export type PlatformCaptions = Record<Platform, string>;
 

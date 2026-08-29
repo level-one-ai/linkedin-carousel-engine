@@ -9,12 +9,26 @@ import {
   savePost,
 } from './pocketbase';
 import { renderTemplate } from './render';
-import { emptyCaptions, type PlatformCaptions } from './platforms';
+import {
+  PLATFORMS,
+  coercePlan,
+  defaultPlan,
+  type AccountType,
+  type Platform,
+  type PlatformCaptions,
+  type PostPlan,
+} from './platforms';
 import { stripEmojis } from './sanitize';
 import { prepareTemplateAssets } from './template-assets';
 import { declaredSlideSize, templateProblem } from './template-html';
 import { loadSeedTemplates } from './template-seed';
-import type { GenerateResult, HtmlTemplate, InputType, PostMode } from './types';
+import type {
+  GeneratedPayload,
+  GenerateResult,
+  HtmlTemplate,
+  InputType,
+  PostMode,
+} from './types';
 import { extractCodebaseContext } from './unzipper';
 
 function slugify(value: string): string {
@@ -154,6 +168,85 @@ async function resolveChosenTemplate(
   return fallback.id ? healTemplate(fallback, warnings) : fallback;
 }
 
+/** One network's finished render. */
+interface PlatformAsset {
+  template: HtmlTemplate;
+  asset: Awaited<ReturnType<typeof renderSlides>>['asset'];
+  thumbnail: Buffer;
+  images: SlideImage[];
+  overflowingSlides: number[];
+}
+
+/**
+ * Renders what the plan asks for, once per distinct design.
+ *
+ * Two networks on the same design share one render — the output is identical,
+ * and a browser launch is the most expensive thing in a generation. A Single
+ * Image renders the same design and keeps page one, so it carries the same
+ * branding as a carousel rather than being a different kind of thing.
+ */
+async function renderPlan(args: {
+  plan: PostPlan;
+  wanted: Platform[];
+  payload: GeneratedPayload;
+  selectable: HtmlTemplate[];
+  warnings: string[];
+  fallbackKey: string;
+}): Promise<Partial<Record<Platform, PlatformAsset>>> {
+  const assets: Partial<Record<Platform, PlatformAsset>> = {};
+  const byTemplate = new Map<string, PlatformAsset>();
+  const templateAssets = await prepareTemplateAssets();
+
+  for (const platform of args.wanted) {
+    const entry = args.plan[platform];
+    const requested = entry.templateKey || args.fallbackKey;
+    const template = await resolveChosenTemplate(requested, args.selectable, args.warnings);
+
+    if (requested && template.template_key !== requested) {
+      args.warnings.push(
+        `${platform}: the design "${requested}" was not found, so "${template.template_name}" was used.`,
+      );
+    }
+
+    // Keyed on design AND type: the same design as a carousel and as a single
+    // image are different outputs.
+    const cacheKey = `${template.template_key}:${entry.type}`;
+    const already = byTemplate.get(cacheKey);
+    if (already) {
+      assets[platform] = already;
+      continue;
+    }
+
+    const html = renderTemplate(
+      template,
+      { ...args.payload, template_key: template.template_key },
+      templateAssets,
+    );
+
+    // The page comes from the design, not from a constant: an Instagram square
+    // and an X widescreen are different shapes, and rendering either on a 4:5
+    // page would letterbox it.
+    const size = declaredSlideSize(template.raw_html) ?? DEFAULT_SLIDE_SIZE;
+    const rendered = await renderSlides(html, 'carousel', size);
+
+    const built: PlatformAsset = {
+      template,
+      asset: rendered.asset,
+      thumbnail: rendered.thumbnail,
+      images:
+        entry.type === 'image'
+          ? rendered.images.filter((image) => image.slide === 1)
+          : rendered.images,
+      overflowingSlides: rendered.overflowingSlides,
+    };
+
+    byTemplate.set(cacheKey, built);
+    assets[platform] = built;
+  }
+
+  return assets;
+}
+
 export interface GenerateInput {
   postMode: PostMode;
   inputType: InputType;
@@ -164,6 +257,10 @@ export interface GenerateInput {
   sourceName: string;
   /** Optional operator override that skips the model's template choice. */
   forcedTemplateKey?: string;
+  /** What each network is doing: its type and its design. */
+  plan?: PostPlan;
+  /** Whose account this goes out as. */
+  accountType?: AccountType;
 }
 
 /**
@@ -222,6 +319,8 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
       hashtags: payload.hashtags,
       imagePrompt: payload.image_prompt,
       captions: payload.captions,
+      plan: defaultPlan(),
+      accountType: input.accountType ?? 'personal',
       templateKey: 'user_image',
       templateName: 'Uploaded image',
       slideCount: 1,
@@ -230,30 +329,45 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
     });
   }
 
-  const templateKey = input.forcedTemplateKey?.trim() || payload.template_key;
-  const template = await resolveChosenTemplate(templateKey, selectable, warnings);
-  if (template.template_key !== templateKey) {
-    warnings.push(`Template "${templateKey}" was not found, so "${template.template_name}" was used.`);
+  const plan = input.plan ? coercePlan(input.plan) : defaultPlan();
+
+  // Every network that wants something, and which design it wants. A design
+  // asked for by more than one network is rendered once and shared, because
+  // two identical renders is two browser launches for one result.
+  const wanted = PLATFORMS.filter((platform) => plan[platform].type !== 'skip');
+
+  if (wanted.length === 0) {
+    throw new Error('Every network is set to Skip, so there is nothing to make.');
   }
 
-  // Phase 3: merge the payload into the raw HTML.
-  const html = renderTemplate(
-    template,
-    { ...payload, template_key: template.template_key },
-    await prepareTemplateAssets(),
-  );
+  const assets = await renderPlan({
+    plan,
+    wanted,
+    payload,
+    selectable,
+    warnings,
+    fallbackKey: input.forcedTemplateKey?.trim() || payload.template_key,
+  });
 
-  // Phase 4: render through headless Chromium.
-  // The page comes from the design, not from a constant: an Instagram square
-  // and an X widescreen are different shapes, and rendering either on a 4:5
-  // page would letterbox it.
-  const size = declaredSlideSize(template.raw_html) ?? DEFAULT_SLIDE_SIZE;
+  // The post's own asset is whichever network leads. LinkedIn if it is in,
+  // otherwise the first that is: the detail screen and the history card need
+  // one file to show, and this is the one a reader is most likely to see.
+  const lead = wanted.includes('linkedin') ? 'linkedin' : wanted[0];
+  const leadAsset = assets[lead];
 
-  const { asset, thumbnail, images, overflowingSlides } = await renderSlides(
-    html,
-    input.postMode,
-    size,
-  );
+  if (!leadAsset) {
+    throw new Error('Nothing rendered. Check the designs chosen for each network.');
+  }
+
+  const { asset, thumbnail, overflowingSlides, template } = leadAsset;
+
+  // One entry per distinct design, so two networks sharing one do not store
+  // the same pictures twice.
+  const renders = [...new Set(Object.values(assets).map((entry) => entry.template.template_key))]
+    .map((key) => {
+      const built = Object.values(assets).find((entry) => entry.template.template_key === key)!;
+      return { templateKey: key, pdf: built.asset.buffer, images: built.images };
+    });
 
   // The count comes from the finished PDF, not from what the model intended.
   // A design that renders as one page of source code gets this far looking
@@ -314,7 +428,9 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
     hashtags: payload.hashtags,
     imagePrompt: '',
     captions: payload.captions,
-    images,
+    renders,
+    plan,
+    accountType: input.accountType ?? 'personal',
     templateKey: template.template_key,
     templateName: template.template_name,
     slideCount: asset.slideCount,
@@ -340,7 +456,9 @@ async function finish(args: {
   hashtags: string[];
   imagePrompt: string;
   captions: PlatformCaptions;
-  images?: SlideImage[];
+  renders?: Array<{ templateKey: string; pdf: Buffer; images: SlideImage[] }>;
+  plan: PostPlan;
+  accountType: AccountType;
   templateKey: string;
   templateName: string;
   slideCount: number;
@@ -367,7 +485,9 @@ async function finish(args: {
       hashtags: args.hashtags,
       image_prompt: args.imagePrompt,
       captions: args.captions,
-      images: args.images,
+      renders: args.renders,
+      plan: args.plan,
+      account_type: args.accountType,
       asset: args.asset,
       thumbnail: args.thumbnail,
     });

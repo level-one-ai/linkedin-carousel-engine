@@ -204,7 +204,11 @@ let cachedClient: GoogleGenAI | null = null;
 
 function client(): GoogleGenAI {
   if (!cachedClient) {
-    cachedClient = new GoogleGenAI({ apiKey: config.geminiApiKey });
+    const baseUrl = config.geminiBaseUrl;
+    cachedClient = new GoogleGenAI({
+      apiKey: config.geminiApiKey,
+      ...(baseUrl ? { httpOptions: { baseUrl } } : {}),
+    });
   }
   return cachedClient;
 }

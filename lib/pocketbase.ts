@@ -18,6 +18,8 @@ export const COLLECTIONS = {
   templates: 'html_templates',
   posts: 'generated_posts',
   errors: 'error_logs',
+  connections: 'platform_connections',
+  publications: 'post_publications',
 } as const;
 
 let cachedClient: PocketBase | null = null;
@@ -276,7 +278,7 @@ export function toPostSummary(record: RecordModel): PostSummary {
     created: String(record.created ?? ''),
     captions: readCaptions(record),
     approvals: readApprovals(record),
-    // The stored filenames, as <design>__<slide>.jpg.
+    // The stored filenames, as <design>_<slide>.jpg.
     imageNames: Array.isArray(record.images) ? record.images.map(String) : [],
     plan: coercePlan(parseJson<unknown>(record.plan, null)),
     accountType: String(record.account_type ?? 'personal'),
@@ -391,7 +393,10 @@ export async function savePost(entry: NewPost): Promise<string> {
       form.append(
         'images',
         new Blob([new Uint8Array(image.buffer)], { type: 'image/jpeg' }),
-        `${render.templateKey}__${String(image.slide).padStart(2, '0')}.jpg`,
+        // One underscore, not two: PocketBase slugifies the filename on the
+        // way in and collapses a double underscore, so a name written with
+        // one would never be found again.
+        `${render.templateKey}_${String(image.slide).padStart(2, '0')}.jpg`,
       );
     }
   }
@@ -490,6 +495,52 @@ export async function getPostRecord(id: string): Promise<RecordModel> {
 // ---------------------------------------------------------------------------
 // Errors
 // ---------------------------------------------------------------------------
+
+/**
+ * The stored slides of one design, in order, as bytes.
+ *
+ * Publishing needs the pictures themselves, not a URL: LinkedIn takes an
+ * upload rather than a link. The field is `protected`, so this goes through a
+ * file token the same way the image route does.
+ */
+export async function readSlideImages(postId: string, design: string): Promise<Buffer[]> {
+  const client = await requireAdmin();
+  const record = await client.collection(COLLECTIONS.posts).getOne(postId);
+  const stored = (Array.isArray(record.images) ? record.images.map(String) : []).filter((name) =>
+    design ? name.startsWith(`${design}_`) : true,
+  );
+
+  // Sorted by the two-digit slide number in the name, because PocketBase
+  // returns them in its own order.
+  stored.sort();
+
+  const token = await client.files.getToken();
+  const buffers: Buffer[] = [];
+
+  for (const name of stored) {
+    const response = await fetch(client.files.getURL(record, name, { token }));
+    if (!response.ok) {
+      throw new Error(`Slide ${name} could not be read back (${response.status}).`);
+    }
+    buffers.push(Buffer.from(await response.arrayBuffer()));
+  }
+
+  return buffers;
+}
+
+/** The rendered PDF for one design, as bytes. */
+export async function readRender(postId: string, design: string): Promise<Buffer | null> {
+  const client = await requireAdmin();
+  const record = await client.collection(COLLECTIONS.posts).getOne(postId);
+  const stored = Array.isArray(record.renders) ? record.renders.map(String) : [];
+  const name = stored.find((file) => file.startsWith(`${design}_`)) ?? stored[0];
+  if (!name) return null;
+
+  const token = await client.files.getToken();
+  const response = await fetch(client.files.getURL(record, name, { token }));
+  if (!response.ok) return null;
+  return Buffer.from(await response.arrayBuffer());
+}
 
 export async function logError(entry: {
   stage: string;

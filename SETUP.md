@@ -286,6 +286,125 @@ exactly what. If there is no yellow box, everything is ready.
 
 ---
 
+## Step 11: Connect your social accounts (only when you want auto-posting)
+
+The app can post for you on **three** places: your LinkedIn personal profile, your Facebook Page,
+and your Instagram professional account.
+
+Two places it will **not** post, on purpose:
+
+- **X.** Since February 2026 X charges for every post through its API. There is no free plan for a
+  new developer account. So you copy the X caption and post it yourself.
+- **Your LinkedIn company page.** LinkedIn only allows that with a special permission called
+  Community Management, and they decide case by case whether to give it. So you post that one
+  yourself too.
+
+The app writes a caption for all four either way. The two above are just copy-and-paste.
+
+### First, tell the app its own address
+
+Facebook and Instagram do not let you hand them a picture. They come and **fetch** it. So they need
+a web address they can reach.
+
+In your `.env.local`:
+
+```
+PUBLIC_BASE_URL=https://media.levelone.digital
+```
+
+No slash on the end. If this is blank, or points at your own laptop, those two will fail and say so.
+
+### Then, put each account in the database
+
+The tokens are **not** kept in `.env.local`. They expire and get replaced, and a file you have to
+redeploy to change is the wrong place for something that changes on its own. They go in the
+`platform_connections` table instead.
+
+Open http://localhost:8090/_/ , click **platform_connections**, and click **New record** for each
+account. Here is what to put in, and where each piece comes from.
+
+#### LinkedIn (your own profile)
+
+| Field | What to put in |
+| --- | --- |
+| `platform` | `linkedin` |
+| `account_type` | `personal` |
+| `display_name` | Anything, e.g. `Dean on LinkedIn` |
+| `account_id` | Your member id (see below) |
+| `access_token` | Your token (see below) |
+| `active` | ticked |
+
+1. Go to **https://www.linkedin.com/developers/apps** and click **Create app**. It asks for a
+   LinkedIn page to link the app to — your company page is fine, this does not give it posting
+   rights.
+2. Open the **Products** tab and add **Share on LinkedIn** and **Sign In with LinkedIn using
+   OpenID Connect**. Both are free and switch on within a minute. You do **not** need
+   "Community Management" — that is the one they review, and this system does not use it.
+3. Open the **Auth** tab. Copy the **Client ID** and **Client Secret**, and add a redirect URL.
+4. Sign in through that app once to get a token with the `w_member_social` and `openid profile`
+   scopes. LinkedIn's own **OAuth token generator**, on the Auth tab, does this for you without
+   writing any code.
+5. With that token, open `https://api.linkedin.com/v2/userinfo`. The `sub` value it returns is your
+   member id. Paste it into `account_id`.
+
+#### Facebook Page
+
+| Field | What to put in |
+| --- | --- |
+| `platform` | `facebook` |
+| `account_type` | `business` |
+| `account_id` | Your **Page** id, not your personal id |
+| `access_token` | A long-lived **Page** token |
+
+1. Go to **https://developers.facebook.com/apps** and create an app of type **Business**.
+2. Add the **Facebook Login for Business** product.
+3. Open the **Graph API Explorer** (Tools menu). Pick your app, then ask for the permissions
+   `pages_manage_posts`, `pages_read_engagement` and `pages_show_list`.
+4. Click **Generate Access Token** and choose your Page. The explorer shows your Page id beside it.
+5. That token lasts about an hour. Paste it into the **Access Token Debugger**
+   (https://developers.facebook.com/tools/debug/accesstoken/) and click **Extend Access Token** to
+   get one that does not expire. Use the extended one.
+
+#### Instagram
+
+| Field | What to put in |
+| --- | --- |
+| `platform` | `instagram` |
+| `account_type` | `business` |
+| `account_id` | Your Instagram **user id** |
+| `access_token` | The same Page token as above |
+
+1. Your Instagram account has to be a **Professional** account (Business or Creator) and it has to
+   be linked to the Facebook Page above. You do that in the Instagram app, under
+   Settings, then Account type and tools.
+2. Add the **Instagram** product to the same Meta app, with the permissions `instagram_basic` and
+   `instagram_content_publish`.
+3. In the Graph API Explorer, call `/<your-page-id>?fields=instagram_business_account`. The `id` it
+   gives back is your Instagram user id.
+4. Before this works for anyone other than you, Meta has to **review** the app. Until then it still
+   works on your own account, which is all you need.
+
+### What each key unlocks
+
+| Key or token | Where it comes from | What stops working without it |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | aistudio.google.com/apikey | Everything. This writes the post. |
+| `POCKETBASE_ADMIN_EMAIL` / `PASSWORD` | You made them up in Step 6 | Nothing saves. |
+| `GITHUB_TOKEN` | github.com/settings/personal-access-tokens, Contents: read and write | A new design is saved to the database but not committed to the repo. |
+| `PUBLIC_BASE_URL` | Your own domain | Facebook and Instagram cannot fetch the pictures. |
+| LinkedIn token | The app you make at linkedin.com/developers | LinkedIn posting. Everything else is fine. |
+| Facebook Page token | Graph API Explorer, then extended | Facebook and Instagram posting. |
+| Instagram user id | `/<page-id>?fields=instagram_business_account` | Instagram posting. |
+
+### Sending a post
+
+Open a finished post, tick **Approve** on the networks you want, and press **Publish**. Each network
+is sent on its own, and you get a line back per network saying where it went or why it did not. One
+network refusing does not stop the others. Pressing Publish again after fixing something updates the
+same record rather than posting twice.
+
+---
+
 ## Your settings at a glance
 
 | Setting | Required? | What it does | Where the value comes from |
@@ -297,6 +416,10 @@ exactly what. If there is no yellow box, everything is ready.
 | `POCKETBASE_ADMIN_PASSWORD` | Yes | Your database password | You make it up in Step 6 |
 | `PDF_CHROMIUM_PATH` | No | Which Chrome makes the PDF | Leave blank; the app finds one |
 | `MAX_UPLOAD_MB` | No | Largest zip file allowed | Leave it at `50` |
+| `PUBLIC_BASE_URL` | Only for posting | The address Facebook and Instagram fetch pictures from | Your own domain, no trailing slash |
+| `GITHUB_TOKEN` | No | Commits a new design back to the repo | github.com/settings/personal-access-tokens |
+| `LINKEDIN_API_VERSION` | No | Which LinkedIn API version to use | Leave blank |
+| `META_GRAPH_VERSION` | No | Which Facebook API version to use | Leave blank |
 
 ---
 

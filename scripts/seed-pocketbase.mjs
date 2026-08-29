@@ -177,54 +177,58 @@ const COLLECTIONS = [
     indexes: [],
   },
 
-  // The three collections below are created now and written to later, when
-  // publishing and the giveaway engine are wired up to Postiz. Creating them
-  // with the rest costs nothing and means that work adds no migration to a
-  // database already holding your posts.
+  // Where each network's account lives, and where every send is recorded.
+  //
+  // Both are locked to the server: every API rule stays null, so nothing here
+  // is reachable from the browser. That matters most for platform_connections,
+  // which holds live access tokens.
   {
-    name: 'post_analytics',
+    name: 'platform_connections',
     type: 'base',
     fields: [
-      { name: 'post_id', type: 'text', required: true },
+      { name: 'platform', type: 'text', required: true, presentable: true },
+      // personal or business. Which one a post uses is chosen when it is made.
+      { name: 'account_type', type: 'text', required: true },
+      { name: 'display_name', type: 'text', required: false, presentable: true },
+      // The LinkedIn member id, the Facebook Page id, or the Instagram user id.
+      { name: 'account_id', type: 'text', required: false },
+      { name: 'access_token', type: 'text', required: false, max: 4000 },
+      { name: 'refresh_token', type: 'text', required: false, max: 4000 },
+      { name: 'token_expires', type: 'date', required: false },
+      { name: 'active', type: 'bool' },
+      { name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
+      { name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
+    ],
+    // One account per network per account type, so there is never a question
+    // of which of two personal LinkedIn rows a post went out on.
+    indexes: [
+      'CREATE UNIQUE INDEX idx_connection_account ON platform_connections (platform, account_type)',
+    ],
+  },
+  {
+    name: 'post_publications',
+    type: 'base',
+    fields: [
+      // Ids rather than relations: the seeder talks to the REST API, and a
+      // relation field needs the target collection's generated id, which would
+      // make this script order-dependent for no gain.
+      { name: 'post', type: 'text', required: true, presentable: true },
       { name: 'platform', type: 'text', required: true },
+      { name: 'connection', type: 'text', required: false },
+      // sent or failed.
+      { name: 'status', type: 'text', required: true },
+      { name: 'remote_id', type: 'text', required: false },
       { name: 'post_url', type: 'text', required: false },
-      { name: 'impressions_count', type: 'number', required: false },
-      { name: 'views_count', type: 'number', required: false },
-      { name: 'likes_count', type: 'number', required: false },
-      { name: 'comments_count', type: 'number', required: false },
-      { name: 'shares_count', type: 'number', required: false },
-      { name: 'last_updated', type: 'date', required: false },
+      { name: 'error', type: 'text', required: false, max: 2000 },
+      { name: 'sent_at', type: 'date', required: false },
+      { name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
+      { name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
     ],
-    // One row per post per network, refreshed rather than appended, so a
-    // chart is not drawn from duplicates.
+    // One row per post per network: a retry updates it rather than adding a
+    // second, so this answers "where has this post gone" and not "what have I
+    // tried".
     indexes: [
-      'CREATE UNIQUE INDEX idx_post_analytics_post_platform ON post_analytics (post_id, platform)',
-    ],
-  },
-  {
-    name: 'hosted_prompts',
-    type: 'base',
-    fields: [
-      { name: 'trigger_keyword', type: 'text', required: true },
-      { name: 'generated_prompt', type: 'text', required: true, max: 20000 },
-      { name: 'source_post_id', type: 'text', required: false },
-      { name: 'views_count', type: 'number', required: false },
-    ],
-    indexes: [],
-  },
-  {
-    name: 'giveaway_logs',
-    type: 'base',
-    fields: [
-      { name: 'platform', type: 'text', required: true },
-      { name: 'commenter_handle', type: 'text', required: true },
-      { name: 'prompt_id', type: 'text', required: false },
-      { name: 'delivered_at', type: 'date', required: false },
-    ],
-    // A commenter gets the prompt once per post, not once per time the
-    // webhook redelivers the same comment.
-    indexes: [
-      'CREATE UNIQUE INDEX idx_giveaway_once ON giveaway_logs (platform, commenter_handle, prompt_id)',
+      'CREATE UNIQUE INDEX idx_publication_post_platform ON post_publications (post, platform)',
     ],
   },
 ];

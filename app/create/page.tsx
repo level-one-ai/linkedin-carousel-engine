@@ -35,8 +35,8 @@ export default function CreatePage() {
               Create a new post
             </h1>
             <p className="mt-2 text-fluid-sm text-muted">
-              Everything is written in plain language with no emojis, and rendered at 1080 by 1350
-              so it fills the frame on LinkedIn.
+              Everything is written in plain language with no emojis, and every network gets its
+              own caption, its own design and its own shape.
             </p>
           </header>
 

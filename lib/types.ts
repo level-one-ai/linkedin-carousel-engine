@@ -82,7 +82,7 @@ export interface PostSummary {
   captions: PlatformCaptions;
   /** Which networks are approved for posting. */
   approvals: Record<Platform, boolean>;
-  /** Stored slide image filenames, as level_one_noir__03.jpg. */
+  /** Stored slide image filenames, as level_one_noir_03.jpg. */
   imageNames: string[];
   /** What each network is doing, and with which design. */
   plan: PostPlan;

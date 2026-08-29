@@ -139,9 +139,16 @@ a post from six weeks ago openable rather than gone.
 | `mime_type` | text | no | `application/pdf` or `image/png`. |
 | `file_name` | text | no | The name downloads are saved under. |
 | `hashtags` | json | no | Rendered as pills on the detail screen. |
+| `linkedin_caption` / `x_caption` / `facebook_caption` / `instagram_caption` | text | no | One caption per network. X is capped at 1000, the rest at 6000. |
+| `linkedin_approved` / `x_approved` / `facebook_approved` / `instagram_approved` | bool | — | Only approved networks are published. |
+| `linkedin_post_id` / `x_post_id` / `facebook_post_id` / `instagram_post_id` | text | no | The network's own id once it has gone out. |
+| `plan` | json | no | What each network is doing: `{"linkedin":{"type":"carousel","templateKey":"level_one_noir"}, ...}`. `type` is `carousel`, `image` or `skip`. |
+| `account_type` | text | no | `personal` or `business`, for the whole post. |
 | `image_prompt` | text (max 4000) | no | Single image posts: the Google Labs Flow prompt. Kept on the record so it can be re-run months later without regenerating the post. |
 | `asset` | file, protected | no | **The carousel PDF, or the picture you upload onto a single image post.** maxSelect 1, max 10MB. Empty on an image post until you add the picture. |
 | `thumbnail` | file, protected | no | Slide one as a JPEG, max 2MB, for the history grid. |
+| `images` | file, protected | no | Every slide as a JPEG, named `<design>_<NN>.jpg`, maxSelect 40. These are what the network previews draw and what Facebook and Instagram fetch. |
+| `renders` | file, protected | no | One PDF per design used, maxSelect 6, 10MB each. A post can use more than one design — LinkedIn on Noir, Instagram on a square — so there can be more than one render. |
 | `created` / `updated` | autodate | — | **Must exist.** The grid sorts on `created`, and sorting on a field PocketBase does not have is a 400 on the listing, not an empty page. |
 
 **Why the files are `protected`:** a protected file cannot be fetched without a token.
@@ -177,6 +184,63 @@ and a separate collection keeps failures out of your post history.
 | `details` | text | no | The full error, capped at 5000 characters. |
 
 **API rules:** none are opened, same reasoning as `generated_posts`.
+
+---
+
+## Collection 4: `platform_connections`
+
+The accounts posts go out as. **One row per network per account type.**
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `platform` | text | yes | `linkedin`, `facebook` or `instagram`. X is posted by hand, so it needs no row. |
+| `account_type` | text | yes | `personal` or `business`. A post made as Business uses the business row. |
+| `display_name` | text | no | What the publish panel calls it, e.g. "Level One Page". |
+| `account_id` | text | no | The LinkedIn member id (the `sub` from `/v2/userinfo`), the Facebook **Page** id, or the Instagram **user** id. |
+| `access_token` | text (max 4000) | no | The live token. |
+| `refresh_token` | text (max 4000) | no | Where the network issues one. |
+| `token_expires` | date | no | Used to warn you before a token dies rather than after. |
+| `active` | bool | — | Untick to stop using an account without deleting it. |
+| `created` / `updated` | autodate | — | |
+
+**Index:** unique on (`platform`, `account_type`), so there is never a question of which of two
+LinkedIn rows a post went out on.
+
+**API rules: all null, including List and View.** This collection holds live access tokens. Nothing
+about it is ever sent to the browser — the publish panel is given a name and a yes/no, never a
+token.
+
+---
+
+## Collection 5: `post_publications`
+
+One row per post per network: where it went, or why it did not.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `post` | text | yes | The `generated_posts` record id. |
+| `platform` | text | yes | Which network. |
+| `connection` | text | no | The `platform_connections` record id it went out on. |
+| `status` | text | yes | `sent` or `failed`. |
+| `remote_id` | text | no | The network's own id for the post. |
+| `post_url` | text | no | A link a human can open. |
+| `error` | text (max 2000) | no | The reason, in a sentence, when it failed. |
+| `sent_at` | date | no | |
+| `created` / `updated` | autodate | — | |
+
+**Index:** unique on (`post`, `platform`). A retry **updates** the row rather than adding a second,
+so this table answers "where has this post gone" and not "what have I tried".
+
+**API rules:** all null.
+
+---
+
+## Collections you can delete
+
+Earlier versions of the seed script created `post_analytics`, `hosted_prompts` and `giveaway_logs`
+for a comment giveaway engine that is no longer part of this system. The seed script no longer
+creates them, but it does not delete anything either — nothing here will ever drop a table with
+your data in it. If they are in your database and empty, delete them by hand in the admin UI.
 
 ---
 

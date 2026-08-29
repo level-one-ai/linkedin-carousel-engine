@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, Loader2, RefreshCw } from 'lucide-react';
+import { Check, Loader2, RefreshCw, Send } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 import CopyButton from '@/components/CopyButton';
 import { PLATFORMS, PLATFORM_SPECS, POST_TYPE_LABELS, type Platform } from '@/lib/platforms';
+import type { PublishReport } from '@/lib/publish';
 import type { PostSummary } from '@/lib/types';
 
 const LinkedInMockup = dynamic(() => import('@/components/previews/LinkedInMockup'), {
@@ -47,6 +48,8 @@ export default function PlatformWorkspace({ post }: { post: PostSummary }) {
   const [approvals, setApprovals] = useState(post.approvals);
   const [busy, setBusy] = useState<Platform | null>(null);
   const [error, setError] = useState('');
+  const [publishing, setPublishing] = useState(false);
+  const [reports, setReports] = useState<PublishReport[] | null>(null);
 
   const fileUrl = post.hasAsset ? `/api/posts/${post.id}/file` : null;
   const entry = post.plan[active];
@@ -89,6 +92,22 @@ export default function PlatformWorkspace({ post }: { post: PostSummary }) {
     setApprovals((current) => ({ ...current, [platform]: next }));
     const result = await patch(platform, { action: 'approve', approved: next });
     if (!result) setApprovals((current) => ({ ...current, [platform]: !next }));
+  }
+
+  async function publish() {
+    setPublishing(true);
+    setError('');
+    setReports(null);
+    try {
+      const response = await fetch(`/api/posts/${post.id}/publish`, { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? 'Publishing failed.');
+      setReports(data.reports as PublishReport[]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Publishing failed.');
+    } finally {
+      setPublishing(false);
+    }
   }
 
   async function redo(platform: Platform) {
@@ -175,6 +194,65 @@ export default function PlatformWorkspace({ post }: { post: PostSummary }) {
         </section>
 
         <section className="space-y-4">
+          <div className="card">
+            <h2 className="text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
+              Publish
+            </h2>
+            <p className="mt-1 text-fluid-xs text-muted">
+              Sends the approved networks to their connected accounts. X and a LinkedIn company page
+              are never sent: copy those captions and post them by hand.
+            </p>
+
+            <button
+              type="button"
+              onClick={publish}
+              disabled={publishing || approvedCount === 0}
+              className="btn-primary mt-4 w-full !py-2.5 !text-fluid-xs disabled:opacity-40"
+            >
+              {publishing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Send className="h-3.5 w-3.5" aria-hidden />
+              )}
+              {approvedCount === 0 ? 'Approve a network first' : `Publish ${approvedCount} approved`}
+            </button>
+
+            {/* Per network, because one refusal is not the run failing. */}
+            {reports ? (
+              <ul className="mt-3 space-y-1.5 border-t border-line pt-3">
+                {reports.map((report) => (
+                  <li key={report.platform} className="text-fluid-xs">
+                    <span
+                      className={
+                        report.state === 'sent'
+                          ? 'font-semibold text-emerald-700'
+                          : report.state === 'failed'
+                            ? 'font-semibold text-red-700'
+                            : 'font-semibold text-muted'
+                      }
+                    >
+                      {PLATFORM_SPECS[report.platform].label}
+                    </span>{' '}
+                    <span className="text-muted">{report.detail}</span>
+                    {report.postUrl ? (
+                      <>
+                        {' '}
+                        <a
+                          href={report.postUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline underline-offset-4"
+                        >
+                          View
+                        </a>
+                      </>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+
           <div className="card">
             <p className="mb-3 text-fluid-xs text-muted">
               {POST_TYPE_LABELS[entry.type]}

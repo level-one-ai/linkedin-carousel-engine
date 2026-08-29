@@ -51,6 +51,25 @@ export const config = {
   get pocketbaseAdminPassword() {
     return optional('POCKETBASE_ADMIN_PASSWORD', '');
   },
+  /** The LinkedIn API version stamp, which they date rather than number. */
+  get linkedinVersion() {
+    return optional('LINKEDIN_API_VERSION', '202506');
+  },
+  /** The Meta Graph version both Facebook and Instagram are called on. */
+  get metaGraphVersion() {
+    return optional('META_GRAPH_VERSION', 'v23.0');
+  },
+  /**
+   * Where the publishing calls go. Both default to the real APIs. They exist
+   * so the publishing path can be exercised against a stub — every step of it,
+   * including the failure handling — without posting to a live account.
+   */
+  get linkedinApiBase() {
+    return optional('LINKEDIN_API_BASE', 'https://api.linkedin.com/rest').replace(/\/$/, '');
+  },
+  get metaGraphBase() {
+    return optional('META_GRAPH_BASE', 'https://graph.facebook.com').replace(/\/$/, '');
+  },
   /** Max upload size for a .zip archive, in megabytes. */
   get maxUploadMb() {
     return Number(optional('MAX_UPLOAD_MB', '50'));
@@ -71,17 +90,11 @@ export const config = {
   },
 
   /**
-   * Publishing, analytics and the comment inbox, through a self-hosted Postiz.
-   * Read but not yet used: the routes that will call it are not built, and an
-   * empty value here is what the health check reports as "not connected".
+   * Where this app is reachable from the public internet, with no trailing
+   * slash. Instagram and Facebook do not accept an upload: they fetch the
+   * picture from a URL, so a link they can reach is the difference between
+   * publishing and not. Empty is fine until you publish.
    */
-  get postizUrl() {
-    return optional('POSTIZ_URL', '').replace(/\/$/, '');
-  },
-  get postizApiKey() {
-    return optional('POSTIZ_API_KEY', '');
-  },
-  /** Where a hosted prompt's share link points. */
   get publicBaseUrl() {
     return optional('PUBLIC_BASE_URL', '').replace(/\/$/, '');
   },
@@ -110,8 +123,6 @@ export function environmentReport() {
     { key: 'GITHUB_TOKEN', set: Boolean(process.env.GITHUB_TOKEN), required: false },
     { key: 'GITHUB_REPO', set: Boolean(process.env.GITHUB_REPO), required: false },
     { key: 'GITHUB_BRANCH', set: Boolean(process.env.GITHUB_BRANCH), required: false },
-    { key: 'POSTIZ_URL', set: Boolean(process.env.POSTIZ_URL), required: false },
-    { key: 'POSTIZ_API_KEY', set: Boolean(process.env.POSTIZ_API_KEY), required: false },
     { key: 'PUBLIC_BASE_URL', set: Boolean(process.env.PUBLIC_BASE_URL), required: false },
   ];
 }

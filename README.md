@@ -33,12 +33,17 @@ Each tab has an **approval checkbox** and a **Redo this post** button. Redo rewr
 caption and writes that one field — verified: with two networks approved, a redo of X changed
 exactly one field of the whole record.
 
-The image sets come from the same render as the PDF, so a generation still launches one browser:
-the 4:5 slide for Facebook and Instagram, and a 16:9 crop from the middle of each slide for X.
+Each network also gets its own **post type** (Carousel, Single Image or Skip), its own **design**,
+and an **account type** for the whole post — personal or business. A design declares its own page
+size, so an Instagram square is a real square rather than a cropped portrait. Two networks on one
+design share a single render, because two identical renders is two browser launches for one result.
 
-**Publishing is not wired up yet.** The database tables and the environment variables exist, and it
-will go through a self-hosted Postiz so the four networks are one integration. See `.env.example`
-for what that needs, including the two platform approvals nobody can grant themselves.
+**Publishing** goes direct to each network's own API: a LinkedIn personal profile (as a document
+carousel), a Facebook Page, and an Instagram professional account. X and a LinkedIn **company page**
+are never sent — X is pay-per-use and a company page needs an approval LinkedIn does not hand to a
+self-serve app — so those two captions are copied and posted by hand. Every send writes a row to
+`post_publications`, and a retry updates that row rather than adding a second. See `SETUP.md` for
+where each token comes from.
 
 ### Making a new design
 

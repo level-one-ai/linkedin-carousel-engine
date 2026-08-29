@@ -32,9 +32,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const padded = String(slide).padStart(2, '0');
     // A design is asked for by name; without one, any design's slide will do,
     // which is what the history card wants.
+    // PocketBase appends a random suffix to the name it is given, so the
+    // slide number is followed by an underscore rather than the dot.
     const wanted = design
-      ? new RegExp(`^${design}__${padded}\\b`)
-      : new RegExp(`__${padded}\\b`);
+      ? new RegExp(`^${design}_${padded}[_.]`)
+      : new RegExp(`_${padded}[_.]`);
     const name = stored.find((file) => wanted.test(file));
 
     if (!name) {

@@ -17,6 +17,7 @@ import {
   type Platform,
   type PlatformCaptions,
   type PostPlan,
+  type PostType,
 } from './platforms';
 import { stripEmojis } from './sanitize';
 import { prepareTemplateAssets } from './template-assets';
@@ -151,6 +152,19 @@ async function resolveTemplates(warnings: string[]): Promise<HtmlTemplate[]> {
   return [...bundled, ...extra];
 }
 
+/**
+ * Designs of one kind.
+ *
+ * A carousel cover used as a single image tells the reader to swipe to a page
+ * that is not there, and a one page design rendered as a carousel is eight
+ * copies of itself. So the two are never mixed, and the model is only ever
+ * shown the carousels.
+ */
+function designsOfKind(available: HtmlTemplate[], type: PostType): HtmlTemplate[] {
+  const wanted = type === 'image' ? 'image' : 'carousel';
+  return available.filter((template) => (template.postType ?? 'carousel') === wanted);
+}
+
 async function resolveChosenTemplate(
   templateKey: string,
   available: HtmlTemplate[],
@@ -199,12 +213,32 @@ async function renderPlan(args: {
 
   for (const platform of args.wanted) {
     const entry = args.plan[platform];
-    const requested = entry.templateKey || args.fallbackKey;
-    const template = await resolveChosenTemplate(requested, args.selectable, args.warnings);
+    // Only designs of the right kind are candidates, so a plan naming a
+    // carousel for a single image lands on a single image design rather than
+    // on a cover with a SWIPE button on it.
+    const candidates = designsOfKind(args.selectable, entry.type);
+    const requested = entry.templateKey || (entry.type === 'image' ? '' : args.fallbackKey);
+
+    if (candidates.length === 0) {
+      args.warnings.push(
+        `${platform}: there are no ${entry.type === 'image' ? 'single image' : 'carousel'} designs ` +
+          'available, so the design chosen for the post was used instead.',
+      );
+    }
+
+    const pool = candidates.length > 0 ? candidates : args.selectable;
+
+    // Nothing named for a single image row: prefer a design drawn for this
+    // network, so LinkedIn gets the tall one and X the widescreen one rather
+    // than whichever happens to be first in the folder.
+    const preferred =
+      requested || pool.find((template) => template.platform === platform)?.template_key || '';
+
+    const template = await resolveChosenTemplate(preferred, pool, args.warnings);
 
     if (requested && template.template_key !== requested) {
       args.warnings.push(
-        `${platform}: the design "${requested}" was not found, so "${template.template_name}" was used.`,
+        `${platform}: the design "${requested}" was not used, so "${template.template_name}" was instead.`,
       );
     }
 
@@ -217,9 +251,15 @@ async function renderPlan(args: {
       continue;
     }
 
+    // A single image is ONE page, so the design is given one slide rather
+    // than eight and asked to render it. Rendering all eight and keeping the
+    // first would be seven wasted pages, and it would make a design built as
+    // a single page — no pager, no swipe — impossible to write.
+    const slides = entry.type === 'image' ? args.payload.slides.slice(0, 1) : args.payload.slides;
+
     const html = renderTemplate(
       template,
-      { ...args.payload, template_key: template.template_key },
+      { ...args.payload, slides, template_key: template.template_key },
       templateAssets,
     );
 
@@ -233,10 +273,7 @@ async function renderPlan(args: {
       template,
       asset: rendered.asset,
       thumbnail: rendered.thumbnail,
-      images:
-        entry.type === 'image'
-          ? rendered.images.filter((image) => image.slide === 1)
-          : rendered.images,
+      images: rendered.images,
       overflowingSlides: rendered.overflowingSlides,
     };
 
@@ -297,11 +334,14 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
   // Phase 2: analysis, caption, and either a slide payload or an image prompt.
   // A single image post needs no design, so PocketBase is not consulted for one.
   const selectable = input.postMode === 'image' ? [] : await resolveTemplates(warnings);
+  // The model picks the post's own design, which is the carousel one. The
+  // single image designs are chosen per network in the plan, not by it.
+  const offered = designsOfKind(selectable, 'carousel');
 
   const payload = await generateContentPayload({
     contextString,
     postMode: input.postMode,
-    templates: selectable,
+    templates: offered,
     sourceName: input.sourceName,
   });
 

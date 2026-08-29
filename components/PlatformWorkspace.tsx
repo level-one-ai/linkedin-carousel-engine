@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Check, Loader2, RefreshCw, Send } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
@@ -18,6 +18,57 @@ const InstagramMockup = dynamic(() => import('@/components/previews/InstagramMoc
   ssr: false,
 });
 const FacebookMockup = dynamic(() => import('@/components/previews/FacebookMockup'), { ssr: false });
+
+/**
+ * Scales the mockup down until it fits the space it has been given.
+ *
+ * The whole point of these previews is that they are the network's own layout
+ * at the network's own proportions, so the thing that must not happen is an
+ * inner scrollbar: it would hide the fold, which is the one thing you are
+ * looking at. Scaling keeps every proportion and loses only pixels.
+ *
+ * Only on a wide screen. On a phone the page scrolls, which is what a phone
+ * does.
+ */
+function useFitScale() {
+  const box = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  const measure = useCallback(() => {
+    const outer = box.current;
+    const content = inner.current;
+    if (!outer || !content) return;
+
+    if (!window.matchMedia('(min-width: 1024px)').matches) {
+      setScale(1);
+      return;
+    }
+
+    // scrollHeight is the untransformed height: a CSS transform does not
+    // change layout, so this does not feed back on itself.
+    const height = content.scrollHeight;
+    const width = content.scrollWidth;
+    if (!height || !width) return;
+
+    const next = Math.min(1, outer.clientHeight / height, outer.clientWidth / width);
+    setScale(Number.isFinite(next) && next > 0 ? next : 1);
+  }, []);
+
+  useLayoutEffect(() => {
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (box.current) observer.observe(box.current);
+    if (inner.current) observer.observe(inner.current);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [measure]);
+
+  return { box, inner, scale, measure };
+}
 
 function PreviewSkeleton() {
   return (
@@ -42,7 +93,14 @@ function PreviewSkeleton() {
  * touched, so the three you have already approved cannot be disturbed by
  * rewriting the fourth.
  */
-export default function PlatformWorkspace({ post }: { post: PostSummary }) {
+export default function PlatformWorkspace({
+  post,
+  extras,
+}: {
+  post: PostSummary;
+  /** Cards that belong beside the preview rather than under the page. */
+  extras?: React.ReactNode;
+}) {
   const [active, setActive] = useState<Platform>('linkedin');
   const [captions, setCaptions] = useState(post.captions);
   const [approvals, setApprovals] = useState(post.approvals);
@@ -50,6 +108,7 @@ export default function PlatformWorkspace({ post }: { post: PostSummary }) {
   const [error, setError] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [reports, setReports] = useState<PublishReport[] | null>(null);
+  const { box, inner, scale, measure } = useFitScale();
 
   const fileUrl = post.hasAsset ? `/api/posts/${post.id}/file` : null;
   const entry = post.plan[active];
@@ -117,14 +176,21 @@ export default function PlatformWorkspace({ post }: { post: PostSummary }) {
     }
   }
 
+  // A different tab is a different height, and a caption that has just been
+  // rewritten is a different height again.
+  useEffect(() => {
+    const timer = setTimeout(measure, 60);
+    return () => clearTimeout(timer);
+  }, [active, captions, approvals, measure]);
+
   const caption = captions[active];
   const spec = PLATFORM_SPECS[active];
   const live = PLATFORMS.filter((platform) => post.plan[platform].type !== 'skip');
   const approvedCount = live.filter((platform) => approvals[platform]).length;
 
   return (
-    <div>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mb-4 flex shrink-0 flex-wrap items-center gap-2">
         {PLATFORMS.map((platform) => (
           <button
             key={platform}
@@ -155,19 +221,26 @@ export default function PlatformWorkspace({ post }: { post: PostSummary }) {
       {error ? (
         <div
           role="alert"
-          className="mb-4 rounded-2xl border border-red-200 bg-red-50/80 px-4 py-3 text-fluid-xs text-red-800"
+          className="mb-4 shrink-0 rounded-2xl border border-red-200 bg-red-50/80 px-4 py-3 text-fluid-xs text-red-800"
         >
           {error}
         </div>
       ) : null}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
-        <section>
-          <p className="mb-3 text-fluid-xs uppercase tracking-widest text-muted">
+      <div className="grid min-h-0 flex-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+        <section className="flex min-h-0 flex-col lg:h-full">
+          <p className="mb-3 shrink-0 text-fluid-xs uppercase tracking-widest text-muted">
             {skipped ? `${spec.label} was skipped` : `How it will look on ${spec.label}`}
           </p>
 
-          <div className="mx-auto w-full max-w-[555px]">
+          {/* The preview is scaled to whatever height is left rather than
+              given a scrollbar, so the fold stays where the network puts it. */}
+          <div ref={box} className="min-h-0 flex-1 overflow-hidden">
+          <div
+            ref={inner}
+            style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}
+            className="mx-auto w-full max-w-[555px]"
+          >
             {/* A skipped network has no slides of its own, so drawing the
                 mockup would show another network's pictures and read as
                 something having gone wrong. */}
@@ -191,9 +264,10 @@ export default function PlatformWorkspace({ post }: { post: PostSummary }) {
               <FacebookMockup post={post} caption={caption} slides={slides} imageBase={imageBase} />
             )}
           </div>
+          </div>
         </section>
 
-        <section className="space-y-4">
+        <section className="custom-scrollbar space-y-4 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1">
           <div className="card">
             <h2 className="text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
               Publish
@@ -313,6 +387,8 @@ export default function PlatformWorkspace({ post }: { post: PostSummary }) {
               {caption.length > spec.limit ? ` — over the ${spec.limit} limit` : ''}
             </p>
           </div>
+
+          {extras}
         </section>
       </div>
     </div>

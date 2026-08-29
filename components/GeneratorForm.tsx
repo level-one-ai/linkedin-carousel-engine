@@ -36,6 +36,8 @@ interface TemplateSummary {
   category: string;
   /** Which network the design was drawn for. Absent means it suits any. */
   platform?: string;
+  /** Whether it is an eight page carousel or a one page picture. */
+  postType?: 'carousel' | 'image';
 }
 
 const ACCOUNT_LABELS: Record<AccountType, { label: string; hint: string }> = {
@@ -180,12 +182,22 @@ export default function GeneratorForm({ onBusyChange }: { onBusyChange?: (busy: 
    * then the ones drawn for no network in particular. A design made for
    * Instagram is a square, and offering it on X would just letterbox it.
    */
-  function designsFor(platform: Platform): TemplateSummary[] {
+  function designsFor(platform: Platform, type: PostType): TemplateSummary[] {
+    // Kind first: a carousel cover used as a single image tells the reader to
+    // swipe to a page that is not there, so the two kinds are never mixed in
+    // one list.
+    const kind = templates.filter(
+      (template) => (template.postType ?? 'carousel') === (type === 'image' ? 'image' : 'carousel'),
+    );
+
     return [
-      ...templates.filter((template) => template.platform === platform),
-      ...templates.filter((template) => !template.platform),
+      ...kind.filter((template) => template.platform === platform),
+      ...kind.filter((template) => !template.platform),
     ];
   }
+
+  /** The post's own design, which is always a carousel one. */
+  const carousels = templates.filter((template) => (template.postType ?? 'carousel') === 'carousel');
 
   return (
     <AnimatePresence mode="wait">
@@ -310,8 +322,10 @@ export default function GeneratorForm({ onBusyChange }: { onBusyChange?: (busy: 
                         }
                         className="field-input !py-2 text-fluid-sm normal-case tracking-normal disabled:opacity-40"
                       >
-                        <option value="">Same as the design below</option>
-                        {designsFor(platform).map((template) => (
+                        <option value="">
+                          {entry.type === 'image' ? 'Pick a single image design' : 'Same as the design below'}
+                        </option>
+                        {designsFor(platform, entry.type).map((template) => (
                           <option key={template.template_key} value={template.template_key}>
                             {template.template_name}
                           </option>
@@ -408,7 +422,7 @@ export default function GeneratorForm({ onBusyChange }: { onBusyChange?: (busy: 
                   className="field-input mt-1.5 text-fluid-sm normal-case tracking-normal"
                 >
                   <option value="">Let the model choose</option>
-                  {templates.map((template) => (
+                  {carousels.map((template) => (
                     <option key={template.template_key} value={template.template_key}>
                       {template.template_name}
                     </option>

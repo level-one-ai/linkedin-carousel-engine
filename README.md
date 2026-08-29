@@ -55,9 +55,9 @@ committed to `templates/` so it is in git.
 
 ### The two types
 
-**Carousel.** Gemini picks one of your five slide designs, writes eight slides against a fixed
-blueprint, and Chromium renders them to a 1080 x 1350 PDF. Caption and PDF are saved together and
-the post opens straight away.
+**Carousel.** Gemini picks one of your six carousel designs, writes eight slides against a fixed
+blueprint, and Chromium renders them at the size that design declares. Caption and PDF are saved
+together and the post opens straight away.
 
 **Single Image.** The picture is made in Google Labs Flow, not here, so the engine writes the
 caption **and the prompt that produces the picture**. Copy the prompt, generate the image, then
@@ -76,7 +76,7 @@ cp .env.example .env.local          # then fill in GEMINI_API_KEY, see SETUP.md
 docker compose up -d pocketbase
 docker compose exec pocketbase /usr/local/bin/pocketbase superuser upsert you@example.com YourPassword123
 npm install
-npm run seed                        # creates collections, loads the five slide designs
+npm run seed                        # creates collections, loads the slide designs
 npm run dev                         # http://localhost:3001
 ```
 
@@ -103,7 +103,7 @@ Rendering needs a Chrome or Chromium. If you have Google Chrome installed, nothi
 5. **Persistence.** `lib/pocketbase.ts` writes the record. A carousel arrives with its file; a
    single image post arrives without one and gets it later through `/api/posts/[id]/image`.
 
-`lib/pipeline.ts` sequences all of it. The five designs always come from `templates/`; PocketBase is
+`lib/pipeline.ts` sequences all of it. The designs always come from `templates/`; PocketBase is
 asked only for designs stored under a key that folder does not have, so one can be added without a
 deploy but nothing in the database can break the five. A carousel that cannot be saved is handed to
 the browser directly rather than lost.
@@ -150,10 +150,17 @@ slide and the post ask for the same thing. It is reduced to one printable upperc
 `commentKeyword()` in `lib/sanitize.ts`, both where the model's answer arrives and again where a
 template renders it, because a reader has to type it back exactly.
 
-Six designs: `level_one_cream`, `noir`, `mist`, `sand`, `slate` and `portrait`. Each lays its cover
-out differently — the mark centred and large, a lockup top left, a headline on a rule, the mark bled
-off the right edge, a top bar — so the designs are told apart at a glance rather than by colour
-alone. See [POCKETBASE.md](POCKETBASE.md).
+Six carousel designs: `level_one_cream`, `noir`, `mist`, `sand`, `slate` and `portrait`. Each lays
+its cover out differently — the mark centred and large, a lockup top left, a headline on a rule, the
+mark bled off the right edge, a top bar — so the designs are told apart at a glance rather than by
+colour alone. See [POCKETBASE.md](POCKETBASE.md).
+
+And six single-image designs, `level_one_still_*`: a square (1080 x 1080) for Instagram and
+Facebook, a tall one (1080 x 1350) for LinkedIn and a widescreen one (1600 x 900) for X, each in a
+plain version and a version with the author photograph in the corner. They are **one page** — no
+page counter, no swipe — because a single image has nothing to swipe to, and a carousel cover used
+as one tells the reader to swipe to a page that is not there. The picker never mixes the two kinds:
+a Single Image row is offered only the stills, a Carousel row only the carousels.
 
 ### The portrait design
 

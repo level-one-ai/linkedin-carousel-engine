@@ -55,6 +55,12 @@ export interface HtmlTemplate {
    * enforce anything — a square design on LinkedIn is unusual, not invalid.
    */
   platform?: string;
+  /**
+   * What the design is for: an eight page carousel, or one finished picture.
+   * A carousel cover used as a single image tells the reader to swipe to a
+   * page that is not there, so the two are not interchangeable.
+   */
+  postType?: 'carousel' | 'image';
 }
 
 /**

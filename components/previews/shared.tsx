@@ -120,11 +120,16 @@ export function SlideImages({
 }) {
   const [index, setIndex] = useState(0);
   const [failed, setFailed] = useState(false);
+  // The design's own shape, read off the picture once it has loaded. A square
+  // design drawn in a 4:5 box would show two grey bands that the network will
+  // not show, which is exactly the kind of lie these previews exist to avoid.
+  const [ratio, setRatio] = useState<number | null>(null);
   const count = Math.max(1, slides);
 
   useEffect(() => {
     setIndex(0);
     setFailed(false);
+    setRatio(null);
   }, [imageBase]);
 
   if (failed) {
@@ -140,12 +145,21 @@ export function SlideImages({
   }
 
   return (
-    <div className={`relative overflow-hidden bg-black/5 ${aspect} ${rounded}`}>
+    <div
+      className={`relative overflow-hidden bg-black/5 ${ratio ? '' : aspect} ${rounded}`}
+      style={ratio ? { aspectRatio: String(ratio) } : undefined}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={`${imageBase}&slide=${index + 1}`}
         alt={`Slide ${index + 1} of ${count}`}
         onError={() => setFailed(true)}
+        onLoad={(event) => {
+          const image = event.currentTarget;
+          if (image.naturalWidth && image.naturalHeight) {
+            setRatio(image.naturalWidth / image.naturalHeight);
+          }
+        }}
         className="h-full w-full object-contain"
       />
 

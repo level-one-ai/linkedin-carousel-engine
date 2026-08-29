@@ -43,9 +43,14 @@ export const PLATFORM_SPECS: Record<Platform, PlatformSpec> = {
     approvedField: 'linkedin_approved',
     postIdField: 'linkedin_post_id',
     brief:
-      'A hook line, then a short technical breakdown, then three or four bullet points each ' +
-      'starting with a hyphen, then the comment ask, then professional hashtags on the final ' +
-      'line. Blank line between sections. Around 1200 characters.',
+      'THE TWO LINE HOOK. Line 1 is a bold claim, a number, or something most people believe that ' +
+      'is wrong. Twelve words maximum, no lead-in. Line 2 is the bridge: it names what the reader ' +
+      'is about to get without giving it away, so they press "see more". Those two lines are the ' +
+      'whole post above the fold, so nothing else goes there. Then a blank line, then the body: ' +
+      'ONE SENTENCE PER LINE with a blank line between them, never a paragraph. Steps and lists ' +
+      'become bullets starting with a hyphen. Be specific with numbers: hours saved, steps removed, ' +
+      'how long it used to take and how long it takes now. End with a low-friction question that ' +
+      'can be answered with one word, then the hashtags on the final line. Around 1200 characters.',
     limit: 3000,
     fold: 210,
   },
@@ -55,9 +60,11 @@ export const PLATFORM_SPECS: Record<Platform, PlatformSpec> = {
     approvedField: 'x_approved',
     postIdField: 'x_post_id',
     brief:
-      'One punchy post, 200 to 260 characters INCLUDING the hashtags, hard maximum 280. One idea ' +
-      'and one reason to care. No bullet lists, no headers, at most two hashtags. This is the ' +
-      'only platform with a limit that rejects rather than truncates, so count it.',
+      'One punchy post, 200 to 260 characters INCLUDING the hashtags, hard maximum 280. Either one ' +
+      'bold takeaway, or a numbered summary that leads with the number: "3 steps to ..." reads as ' +
+      'a promise a reader can measure. One idea and one reason to care, no throat-clearing, at ' +
+      'most two hashtags. This is the only platform whose limit rejects rather than truncates, so ' +
+      'count the characters.',
     limit: 280,
     fold: 280,
   },
@@ -67,9 +74,10 @@ export const PLATFORM_SPECS: Record<Platform, PlatformSpec> = {
     approvedField: 'facebook_approved',
     postIdField: 'facebook_post_id',
     brief:
-      'A community narrative: what the problem felt like, what was built, what changed for the ' +
-      'people using it. Conversational and plain, no bullet lists, ends on a question. Around ' +
-      '600 characters. One or two hashtags at most.',
+      'Story first. Open on the real problem as it was actually lived — what was going wrong, what ' +
+      'it cost, how it felt — and only then say what was built and what changed. Conversational ' +
+      'and plain, the way you would tell it to someone at a table, no bullet lists and no jargon. ' +
+      'Ends on a question that invites a reply. Around 600 characters, one or two hashtags at most.',
     limit: 2000,
     fold: 250,
   },
@@ -79,9 +87,12 @@ export const PLATFORM_SPECS: Record<Platform, PlatformSpec> = {
     approvedField: 'instagram_approved',
     postIdField: 'instagram_post_id',
     brief:
-      'Visual first: one strong opening line, then short lines separated by blank lines so it ' +
-      'reads down the phone rather than as a paragraph. Around 500 characters, then five to ' +
-      'eight hashtags on the final line.',
+      'Open by telling them to keep it: "Save this post for later" or the same idea in your own ' +
+      'words, on its own first line. Then two or three short lines of setup, then the takeaways ' +
+      'as short bullets, each one thing. Short lines separated by blank lines so it reads down a ' +
+      'phone rather than as a paragraph. Close on the trigger word: tell them to comment the ' +
+      'comment_keyword to get the full blueprint. Around 500 characters, then five to eight ' +
+      'hashtags on the final line.',
     limit: 2200,
     fold: 125,
   },

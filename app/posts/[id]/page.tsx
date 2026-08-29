@@ -7,7 +7,6 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
-import CopyButton from '@/components/CopyButton';
 import ImagePromptPanel from '@/components/ImagePromptPanel';
 import { formatDate } from '@/components/PostCard';
 import type { PostSummary } from '@/lib/types';
@@ -74,9 +73,13 @@ export default function PostPage() {
     : null;
   const downloadUrl = `/api/posts/${params.id}/file?download=1`;
 
+  // On a wide screen the post fills the window and nothing scrolls: the mockup,
+  // the caption and the publish panel are one view, because checking a post
+  // against four networks is a comparison, and a comparison you have to scroll
+  // through is not one. A phone still scrolls, which is right.
   return (
-    <div className="custom-scrollbar h-screen overflow-y-auto">
-      <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
+    <div className="custom-scrollbar h-screen overflow-y-auto lg:overflow-hidden">
+      <div className="mx-auto flex w-full max-w-7xl flex-col px-4 py-10 sm:px-6 lg:h-full lg:py-5">
         <Link
           href="/posts"
           className="inline-flex items-center gap-1.5 text-fluid-xs text-muted transition hover:text-foreground"
@@ -106,13 +109,14 @@ export default function PostPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            className="flex min-h-0 flex-1 flex-col"
           >
-            <header className="mb-8 mt-6 flex flex-wrap items-end justify-between gap-4">
+            <header className="mb-4 mt-4 flex shrink-0 flex-wrap items-end justify-between gap-4 lg:mb-3 lg:mt-3">
               <div className="min-w-0">
-                <h1 className="text-fluid-2xl font-semibold tracking-tight text-foreground">
+                <h1 className="text-fluid-xl font-semibold tracking-tight text-foreground">
                   {post.project_title}
                 </h1>
-                <p className="mt-2 text-fluid-xs text-muted">
+                <p className="mt-1 text-fluid-xs text-muted">
                   {formatDate(post.created)}
                   {` · ${isCarousel ? `Carousel, ${post.slide_count} slides` : 'Single image'}`}
                   {isCarousel && post.template_name ? ` · ${post.template_name}` : ''}
@@ -128,72 +132,76 @@ export default function PostPage() {
               ) : null}
             </header>
 
-            <PlatformWorkspace post={post} />
-
-            <div className="mt-8 grid items-start gap-6 lg:grid-cols-2">
-              {post.hashtags.length > 0 ? (
-                <div className="card">
-                  <h2 className="mb-3 text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
-                    Hashtags
-                  </h2>
-                  <div className="flex flex-wrap gap-2">
-                    {post.hashtags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full border border-line bg-white/70 px-3 py-1 text-fluid-xs text-muted"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {post.post_mode === 'image' ? (
-                <ImagePromptPanel post={post} onUploaded={setPost} />
-              ) : null}
-
-              {isCarousel && post.hasAsset && fileUrl ? (
-                <div className="card">
-                  <button
-                    type="button"
-                    onClick={() => setSlidesOpen((open) => !open)}
-                    aria-expanded={slidesOpen}
-                    className="flex w-full items-center justify-between gap-3 text-left"
-                  >
-                    <span className="text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
-                      Every slide
-                      <span className="ml-2 font-normal normal-case tracking-normal text-muted">
-                        ({post.slide_count})
-                      </span>
-                    </span>
-                    <ChevronDown
-                      className={`h-4 w-4 shrink-0 text-muted transition-transform ${
-                        slidesOpen ? 'rotate-180' : ''
-                      }`}
-                      aria-hidden
-                    />
-                  </button>
-
-                  {slidesOpen ? (
-                    <div className="mt-4">
-                      <PdfViewer fileUrl={fileUrl} downloadUrl={downloadUrl} />
+            <PlatformWorkspace
+              post={post}
+              extras={
+                <>
+                  {post.hashtags.length > 0 ? (
+                    <div className="card">
+                      <h2 className="mb-3 text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
+                        Hashtags
+                      </h2>
+                      <div className="flex flex-wrap gap-2">
+                        {post.hashtags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full border border-line bg-white/70 px-3 py-1 text-fluid-xs text-muted"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   ) : null}
-                </div>
-              ) : null}
 
-              {isCarousel && !post.hasAsset ? (
-                <div className="card">
-                  <p className="text-fluid-sm font-semibold text-foreground">
-                    No slides stored for this post
-                  </p>
-                  <p className="mt-2 text-fluid-sm text-muted">
-                    The caption was saved but the file was not. Generate it again to get the slides.
-                  </p>
-                </div>
-              ) : null}
-            </div>
+                  {post.post_mode === 'image' ? (
+                    <ImagePromptPanel post={post} onUploaded={setPost} />
+                  ) : null}
+
+                  {isCarousel && post.hasAsset && fileUrl ? (
+                    <div className="card">
+                      <button
+                        type="button"
+                        onClick={() => setSlidesOpen((open) => !open)}
+                        aria-expanded={slidesOpen}
+                        className="flex w-full items-center justify-between gap-3 text-left"
+                      >
+                        <span className="text-fluid-sm font-semibold uppercase tracking-widest text-foreground">
+                          Every slide
+                          <span className="ml-2 font-normal normal-case tracking-normal text-muted">
+                            ({post.slide_count})
+                          </span>
+                        </span>
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 text-muted transition-transform ${
+                            slidesOpen ? 'rotate-180' : ''
+                          }`}
+                          aria-hidden
+                        />
+                      </button>
+
+                      {slidesOpen ? (
+                        <div className="mt-4">
+                          <PdfViewer fileUrl={fileUrl} downloadUrl={downloadUrl} />
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {isCarousel && !post.hasAsset ? (
+                    <div className="card">
+                      <p className="text-fluid-sm font-semibold text-foreground">
+                        No slides stored for this post
+                      </p>
+                      <p className="mt-2 text-fluid-sm text-muted">
+                        The caption was saved but the file was not. Generate it again to get the
+                        slides.
+                      </p>
+                    </div>
+                  ) : null}
+                </>
+              }
+            />
 
           </motion.div>
         ) : null}

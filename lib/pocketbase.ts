@@ -506,8 +506,13 @@ export async function getPostRecord(id: string): Promise<RecordModel> {
 export async function readSlideImages(postId: string, design: string): Promise<Buffer[]> {
   const client = await requireAdmin();
   const record = await client.collection(COLLECTIONS.posts).getOne(postId);
+  // Anchored on the two digit slide number, not just the prefix: one design's
+  // key can be a prefix of another's — level_one_still_square and
+  // level_one_still_square_portrait — and a plain startsWith would hand the
+  // square design the portrait one's slides as well.
+  const wanted = design ? new RegExp(`^${design}_\\d{2}_`) : /_\d{2}_/;
   const stored = (Array.isArray(record.images) ? record.images.map(String) : []).filter((name) =>
-    design ? name.startsWith(`${design}_`) : true,
+    wanted.test(name),
   );
 
   // Sorted by the two-digit slide number in the name, because PocketBase
@@ -533,7 +538,10 @@ export async function readRender(postId: string, design: string): Promise<Buffer
   const client = await requireAdmin();
   const record = await client.collection(COLLECTIONS.posts).getOne(postId);
   const stored = Array.isArray(record.renders) ? record.renders.map(String) : [];
-  const name = stored.find((file) => file.startsWith(`${design}_`)) ?? stored[0];
+  // The suffix PocketBase appends has no underscore in it, so this cannot
+  // match a longer key that starts with this one.
+  const wanted = new RegExp(`^${design}_[a-z0-9]+\\.pdf$`);
+  const name = stored.find((file) => wanted.test(file)) ?? stored[0];
   if (!name) return null;
 
   const token = await client.files.getToken();

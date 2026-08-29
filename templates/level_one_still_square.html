@@ -1,0 +1,152 @@
+<meta charset="utf-8" />
+<style>
+  /* A SINGLE IMAGE post, not a carousel cover.
+     A 1080 by 1080 square for Instagram and Facebook, where the feed is
+     square and a portrait design is cropped.
+
+     There is no page counter and no swipe on it, because there is nothing to
+     swipe to: everything the post has to say is on this one page, and it ends
+     on the comment ask rather than on a promise of more. The pipeline hands
+     this design one slide rather than eight, so the loop below runs once. */
+  @page { size: 1080px 1080px; margin: 0; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 1080px;
+    background: #f4efe4;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-family: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
+  }
+
+  .slide {
+    position: relative;
+    width: 1080px;
+    height: 1080px;
+    page-break-after: always;
+    break-after: page;
+    overflow: hidden;
+    background: #f4efe4;
+    color: #14120e;
+    padding: 84px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+
+  /* ---- The bar across the top ----------------------------------------- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    font-size: 22px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #6b6357;
+    padding-bottom: 26px;
+    border-bottom: 1px solid rgba(20,18,14,0.16);
+  }
+
+  .brand { display: flex; align-items: center; gap: 20px; }
+  .brand .mark { width: 104px; height: 104px; object-fit: contain; }
+  .brand .wordmark {
+    font-size: 44px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    color: #14120e;
+  }
+
+  /* ---- What the post actually says ------------------------------------ */
+  .heading {
+    font-size: 70px;
+    line-height: 1.06;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    text-transform: uppercase;
+  }
+
+  .body {
+    font-family: Georgia, "Times New Roman", "Liberation Serif", serif;
+    font-size: 29px;
+    line-height: 1.45;
+    color: #6b6357;
+    margin-top: 34px;
+  }
+
+  .bullets {
+    list-style: none;
+    margin-top: 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    font-size: 29px;
+    line-height: 1.35;
+  }
+
+  .bullets li { position: relative; padding-left: 40px; }
+
+  /* A tick drawn from two borders, so no font has to own the glyph. */
+  .bullets li::before {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 8px;
+    width: 10px;
+    height: 19px;
+    border-right: 4px solid #14120e;
+    border-bottom: 4px solid #14120e;
+    transform: rotate(42deg);
+  }
+
+  /* Pushes the ask to the foot of the page whatever length the heading is. */
+  .spacer { flex: 1 1 auto; min-height: 30px; }
+
+  /* ---- The one thing this post asks for -------------------------------- */
+  .ask {
+    padding: 30px 40px;
+    border-radius: 26px;
+    background: #14120e;
+    color: #f4efe4;
+    font-size: 26px;
+    line-height: 1.4;
+  }
+
+  .ask .keyword {
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+
+  .content { display: flex; flex-direction: column; flex: 1 1 auto; padding-top: 54px; }
+</style>
+
+{{#each slides}}
+<section class="slide">
+  <div class="topbar">
+    <span class="brand">
+      <img class="mark" src="{{../logoDataUri}}" alt="" />
+      <span class="wordmark">{{../wordmark}}</span>
+    </span>
+    <span>{{../author}}</span>
+  </div>
+
+  <div class="content">
+    <h1 class="heading">{{heading}}</h1>
+    {{#if body}}<p class="body">{{body}}</p>{{/if}}
+    {{#if bullets.length}}
+      <ul class="bullets">
+        {{#each bullets}}<li>{{this}}</li>{{/each}}
+      </ul>
+    {{/if}}
+    <div class="spacer"></div>
+    <div class="ask">
+      Comment <span class="keyword">{{../commentKeyword}}</span> and I will send you the full
+      project outline and the Claude Code prompt to build your own.
+    </div>
+  </div>
+</section>
+{{/each}}

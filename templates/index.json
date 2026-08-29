@@ -6,31 +6,36 @@
       "template_key": "level_one_cream",
       "template_name": "Level One Cream",
       "file": "level_one_cream.html",
-      "category": "Clean, flat and editorial. The default for step by step walkthroughs, workflow breakdowns and anything instructional where the words carry the whole slide."
+      "category": "Clean, flat and editorial. The default for step by step walkthroughs, workflow breakdowns and anything instructional where the words carry the whole slide.",
+      "postType": "carousel"
     },
     {
       "template_key": "level_one_noir",
       "template_name": "Level One Noir",
       "file": "level_one_noir.html",
-      "category": "Near black with drifting smoke. Use for myth busting, hard truths, contrarian takes and posts meant to stop the scroll with a bold claim."
+      "category": "Near black with drifting smoke. Use for myth busting, hard truths, contrarian takes and posts meant to stop the scroll with a bold claim.",
+      "postType": "carousel"
     },
     {
       "template_key": "level_one_mist",
       "template_name": "Level One Mist",
       "file": "level_one_mist.html",
-      "category": "White with pale smoke. Suits tool stacks, technical architecture, product teardowns and anything that benefits from a light, airy, spacious feel."
+      "category": "White with pale smoke. Suits tool stacks, technical architecture, product teardowns and anything that benefits from a light, airy, spacious feel.",
+      "postType": "carousel"
     },
     {
       "template_key": "level_one_sand",
       "template_name": "Level One Sand",
       "file": "level_one_sand.html",
-      "category": "Warm flat beige. Best for business outcomes, before and after transformations, client results and growth stories aimed at a commercial reader."
+      "category": "Warm flat beige. Best for business outcomes, before and after transformations, client results and growth stories aimed at a commercial reader.",
+      "postType": "carousel"
     },
     {
       "template_key": "level_one_slate",
       "template_name": "Level One Slate",
       "file": "level_one_slate.html",
-      "category": "Heavy grey smoke with depth. Use for mistakes to avoid, risk and warning posts, and anything with a serious or cautionary tone."
+      "category": "Heavy grey smoke with depth. Use for mistakes to avoid, risk and warning posts, and anything with a serious or cautionary tone.",
+      "postType": "carousel"
     },
     {
       "template_key": "level_one_portrait",
@@ -40,8 +45,68 @@
       "requires": [
         "portrait",
         "background"
+      ],
+      "postType": "carousel"
+    },
+    {
+      "template_key": "level_one_still_square",
+      "template_name": "Level One Still Square",
+      "file": "level_one_still_square.html",
+      "category": "A single square picture for Instagram or Facebook. One headline, one supporting line and the comment ask, on cream. Use when the point fits on one page and does not need eight.",
+      "postType": "image",
+      "platform": "instagram"
+    },
+    {
+      "template_key": "level_one_still_square_portrait",
+      "template_name": "Level One Still Square with Photo",
+      "file": "level_one_still_square_portrait.html",
+      "category": "A single square picture with the author photograph in the bottom right corner. Use for personal takes and opinion pieces, where a face in a feed of screenshots is the reason someone stops.",
+      "postType": "image",
+      "platform": "instagram",
+      "requires": [
+        "portrait"
+      ]
+    },
+    {
+      "template_key": "level_one_still_tall",
+      "template_name": "Level One Still Tall",
+      "file": "level_one_still_tall.html",
+      "category": "A single 4:5 portrait picture for LinkedIn, which gives a tall image the most height in the feed. One headline, one supporting line and the comment ask.",
+      "postType": "image",
+      "platform": "linkedin"
+    },
+    {
+      "template_key": "level_one_still_tall_portrait",
+      "template_name": "Level One Still Tall with Photo",
+      "file": "level_one_still_tall_portrait.html",
+      "category": "A single 4:5 portrait picture for LinkedIn with the author photograph in the bottom right corner. Use for first person posts and lessons learned.",
+      "postType": "image",
+      "platform": "linkedin",
+      "requires": [
+        "portrait"
+      ]
+    },
+    {
+      "template_key": "level_one_still_wide",
+      "template_name": "Level One Still Wide",
+      "file": "level_one_still_wide.html",
+      "category": "A single 16:9 widescreen picture for X, where an attached image is drawn wide and a tall one loses its top and bottom. One bold line and the comment ask.",
+      "postType": "image",
+      "platform": "x"
+    },
+    {
+      "template_key": "level_one_still_wide_portrait",
+      "template_name": "Level One Still Wide with Photo",
+      "file": "level_one_still_wide_portrait.html",
+      "category": "A single 16:9 widescreen picture for X with the author photograph beside the words. Use for personal takes where the shape has room for a face next to the claim.",
+      "postType": "image",
+      "platform": "x",
+      "requires": [
+        "portrait"
       ]
     }
   ],
-  "_requires_note": "requires names images from templates/assets that a design cannot render without, by filename without the extension. A design listing one that is not there is left out of the picker rather than rendered with an empty frame."
+  "_requires_note": "requires names images from templates/assets that a design cannot render without, by filename without the extension. A design listing one that is not there is left out of the picker rather than rendered with an empty frame.",
+  "_post_type_note": "postType says what a design is FOR. \"carousel\" designs are the eight page decks; \"image\" designs are one page, drawn as a finished single picture with no page counter and no swipe. The picker offers each kind only where that kind was chosen, because a carousel cover used as a single image tells the reader to swipe to a page that is not there.",
+  "_platform_note": "platform is which network a design was drawn for, and is only a filter on the picker. A design with no platform suits any of them."
 }

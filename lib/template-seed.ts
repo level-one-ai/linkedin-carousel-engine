@@ -39,6 +39,12 @@ interface IndexEntry {
    * the index can never disagree about it.
    */
   platform?: string;
+  /**
+   * What the design is FOR: "carousel" for the eight page decks, "image" for
+   * a design drawn as one finished picture. Absent means carousel, so the
+   * designs that predate this keep working.
+   */
+  postType?: string;
 }
 
 const FALLBACK_CATEGORY =
@@ -164,6 +170,7 @@ export function loadSeedTemplates(): HtmlTemplate[] {
       raw_html,
       problem: null,
       platform: entry.platform,
+      postType: entry.postType === 'image' ? 'image' : 'carousel',
     });
   }
 

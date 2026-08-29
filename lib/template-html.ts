@@ -76,9 +76,54 @@ export function templateProblem(html: string): string | null {
   if (!/\{\{#each\s+slides\s*\}\}/.test(html)) return 'it has no {{#each slides}} loop, so it can only ever be one page';
   if (!/page-break-after|break-after/.test(html)) return 'it has no page break rule, so the slides would run together';
   if (!/\.slide\b/.test(html)) return 'it has no .slide block for the renderer to measure';
+
+  // The size is the design's to choose, but @page and .slide have to agree on
+  // it: Chromium takes the page from @page and lays the slide out from .slide,
+  // so a mismatch is a design that prints with a band of blank down one side.
+  const page = declaredSlideSize(html);
+  if (!page) return 'it has no @page size, so there is no page to print it on';
+
+  const slide = /\.slide\s*\{[^}]*?width:\s*(\d+(?:\.\d+)?)px[^}]*?height:\s*(\d+(?:\.\d+)?)px/is.exec(html);
+  if (slide) {
+    const width = Math.round(Number(slide[1]));
+    const height = Math.round(Number(slide[2]));
+    if (width !== page.width || height !== page.height) {
+      return (
+        `its @page is ${page.width}x${page.height} but its .slide is ${width}x${height}, ` +
+        'so every page would print with a blank band'
+      );
+    }
+  }
+
   return null;
 }
 
 export function templateIsRenderable(html: string): boolean {
   return templateProblem(html) === null;
+}
+
+/**
+ * The page size a design declares, read out of its own @page rule.
+ *
+ * A design is drawn for one shape. LinkedIn wants 1080x1350, Instagram a
+ * 1080x1080 square, X 1600x900 — and rendering a square design on a portrait
+ * page puts it in a letterbox. So the size comes from the template rather than
+ * from a constant, and the template is the only thing that knows it.
+ *
+ * Returns null when there is no readable size, which the caller treats as the
+ * LinkedIn default so the six designs that predate this keep working.
+ */
+export function declaredSlideSize(html: string): { width: number; height: number } | null {
+  const page = /@page\s*\{[^}]*size:\s*(\d+(?:\.\d+)?)px\s+(\d+(?:\.\d+)?)px/i.exec(html);
+  if (!page) return null;
+
+  const width = Math.round(Number(page[1]));
+  const height = Math.round(Number(page[2]));
+
+  // A page smaller than a phone icon or larger than a poster is a typo, not a
+  // design decision, and rendering it would waste a browser launch to find out.
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return null;
+  if (width < 240 || height < 240 || width > 4096 || height > 4096) return null;
+
+  return { width, height };
 }

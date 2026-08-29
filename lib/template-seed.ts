@@ -32,6 +32,13 @@ interface IndexEntry {
    * rather than rendered with an empty frame where the picture goes.
    */
   requires?: string[];
+  /**
+   * Which network this design is drawn for, so the picker can offer the square
+   * designs on Instagram and the widescreen ones on X. The page size itself is
+   * NOT here: it is read out of the template's own @page rule, so the file and
+   * the index can never disagree about it.
+   */
+  platform?: string;
 }
 
 const FALLBACK_CATEGORY =
@@ -156,6 +163,7 @@ export function loadSeedTemplates(): HtmlTemplate[] {
       category: entry.category,
       raw_html,
       problem: null,
+      platform: entry.platform,
     });
   }
 

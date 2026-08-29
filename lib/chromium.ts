@@ -17,14 +17,31 @@ import type { PostMode } from './types';
  * Dockerfile installs one.
  */
 
-/** LinkedIn's 4:5 portrait canvas, in CSS pixels. */
-export const SLIDE_WIDTH_PX = 1080;
-export const SLIDE_HEIGHT_PX = 1350;
+/**
+ * The page a design is drawn on.
+ *
+ * Not a constant any more. LinkedIn wants 4:5, Instagram is square, X is
+ * widescreen — and a design laid out for one and cropped into another is a
+ * design nobody drew. Each template declares its own size and the renderer
+ * reads it.
+ */
+export interface SlideSize {
+  width: number;
+  height: number;
+}
+
+/** What a design is assumed to be when it does not say. */
+export const DEFAULT_SLIDE_SIZE: SlideSize = { width: 1080, height: 1350 };
 
 /** Chromium lays out CSS pixels at 96 DPI, so page size is stated in inches. */
 const CHROMIUM_DPI = 96;
-const PAGE_WIDTH_IN = `${SLIDE_WIDTH_PX / CHROMIUM_DPI}in`;
-const PAGE_HEIGHT_IN = `${SLIDE_HEIGHT_PX / CHROMIUM_DPI}in`;
+
+function pageInches(size: SlideSize) {
+  return {
+    width: `${size.width / CHROMIUM_DPI}in`,
+    height: `${size.height / CHROMIUM_DPI}in`,
+  };
+}
 
 /**
  * Card thumbnails are JPEG, not PNG. Slide one is a full 1080x1350 frame, and
@@ -304,12 +321,16 @@ async function captureSlideImages(page: Page): Promise<SlideImage[]> {
   return images;
 }
 
-export async function renderSlides(html: string, postMode: PostMode): Promise<RenderResult> {
+export async function renderSlides(
+  html: string,
+  postMode: PostMode,
+  size: SlideSize = DEFAULT_SLIDE_SIZE,
+): Promise<RenderResult> {
   const browser = await launch();
 
   try {
     const page = await browser.newPage({
-      viewport: { width: SLIDE_WIDTH_PX, height: SLIDE_HEIGHT_PX },
+      viewport: { width: size.width, height: size.height },
       deviceScaleFactor: 1,
     });
 
@@ -319,7 +340,7 @@ export async function renderSlides(html: string, postMode: PostMode): Promise<Re
 
     // Fit the copy before anything is captured, so the thumbnail, the PNG and
     // the PDF all show the same slides.
-    const overflowingSlides = await fitSlides(page, SLIDE_WIDTH_PX, SLIDE_HEIGHT_PX, MIN_SLIDE_ZOOM);
+    const overflowingSlides = await fitSlides(page, size.width, size.height, MIN_SLIDE_ZOOM);
 
     // The thumbnail is slide one, taken before print emulation so it matches
     // what the browser shows rather than what the printer would.
@@ -330,7 +351,7 @@ export async function renderSlides(html: string, postMode: PostMode): Promise<Re
         : await page.screenshot({
             type: 'jpeg',
             quality: THUMBNAIL_QUALITY,
-            clip: { x: 0, y: 0, width: SLIDE_WIDTH_PX, height: SLIDE_HEIGHT_PX },
+            clip: { x: 0, y: 0, width: size.width, height: size.height },
           }),
     );
 
@@ -338,7 +359,7 @@ export async function renderSlides(html: string, postMode: PostMode): Promise<Re
       const shot = Buffer.from(
         await page.screenshot({
           type: 'png',
-          clip: { x: 0, y: 0, width: SLIDE_WIDTH_PX, height: SLIDE_HEIGHT_PX },
+          clip: { x: 0, y: 0, width: size.width, height: size.height },
         }),
       );
 
@@ -361,8 +382,7 @@ export async function renderSlides(html: string, postMode: PostMode): Promise<Re
 
     const pdf = Buffer.from(
       await page.pdf({
-        width: PAGE_WIDTH_IN,
-        height: PAGE_HEIGHT_IN,
+        ...pageInches(size),
         printBackground: true,
         // The templates own their geometry through @page, so Chromium adds none.
         preferCSSPageSize: true,
@@ -500,7 +520,7 @@ const SLIDE_IMAGE_QUALITY = 84;
 /**
  * The widest a template image is drawn on a slide.
  *
- * Not SLIDE_WIDTH_PX: no design puts a picture across the full 1080px any
+ * Not the slide width: no design puts a picture across the full page any
  * more, and this is the number that keeps a transparent cut-out affordable,
  * since it has to be a PNG and a PNG of a photograph is many times the size of
  * the same photograph as a JPEG.

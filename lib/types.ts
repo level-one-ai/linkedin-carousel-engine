@@ -50,6 +50,11 @@ export interface HtmlTemplate {
   repaired?: boolean;
   /** Why this design cannot render, in a sentence. Null when it is fine. */
   problem?: string | null;
+  /**
+   * Which network this design is drawn for. Used to filter the picker, not to
+   * enforce anything — a square design on LinkedIn is unusual, not invalid.
+   */
+  platform?: string;
 }
 
 /**

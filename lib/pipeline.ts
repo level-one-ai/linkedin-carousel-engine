@@ -1,4 +1,4 @@
-import { renderSlides, type SlideImage } from './chromium';
+import { DEFAULT_SLIDE_SIZE, renderSlides, type SlideImage } from './chromium';
 import { generateContentPayload } from './gemini';
 import {
   describePocketBaseError,
@@ -12,7 +12,7 @@ import { renderTemplate } from './render';
 import { emptyCaptions, type PlatformCaptions } from './platforms';
 import { stripEmojis } from './sanitize';
 import { prepareTemplateAssets } from './template-assets';
-import { templateProblem } from './template-html';
+import { declaredSlideSize, templateProblem } from './template-html';
 import { loadSeedTemplates } from './template-seed';
 import type { GenerateResult, HtmlTemplate, InputType, PostMode } from './types';
 import { extractCodebaseContext } from './unzipper';
@@ -244,7 +244,16 @@ export async function runGeneration(input: GenerateInput): Promise<GenerateResul
   );
 
   // Phase 4: render through headless Chromium.
-  const { asset, thumbnail, images, overflowingSlides } = await renderSlides(html, input.postMode);
+  // The page comes from the design, not from a constant: an Instagram square
+  // and an X widescreen are different shapes, and rendering either on a 4:5
+  // page would letterbox it.
+  const size = declaredSlideSize(template.raw_html) ?? DEFAULT_SLIDE_SIZE;
+
+  const { asset, thumbnail, images, overflowingSlides } = await renderSlides(
+    html,
+    input.postMode,
+    size,
+  );
 
   // The count comes from the finished PDF, not from what the model intended.
   // A design that renders as one page of source code gets this far looking
